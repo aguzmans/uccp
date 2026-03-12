@@ -2,69 +2,108 @@ package benchmark
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"strings"
 )
 
-// GenerateGraph produces an SVG bar chart from benchmark results and writes it
-// to outputPath. The chart is a grouped horizontal bar chart comparing original,
-// compressed, and net token counts for each test file.
+// GenerateGraph produces an SVG line chart showing how compression scales
+// with content size. X axis = number of pages, Y axis = net token savings %.
+// Each domain (HTML, JSON, Code) gets its own line.
 func GenerateGraph(results []BenchmarkResult, outputPath string) error {
 	if len(results) == 0 {
 		return fmt.Errorf("no benchmark results to graph")
 	}
 
-	// Layout constants
-	const (
-		svgWidth     = 900
-		leftMargin   = 220
-		rightMargin  = 80
-		topMargin    = 90
-		bottomMargin = 130
-		groupGap     = 20
-		barHeight    = 22
-		barGap       = 4
-		barsPerGroup = 3
-	)
+	// Group results by category
+	type point struct {
+		pages    int
+		netPct   float64
+		tokPct   float64
+		origTok  int
+		savedTok int
+	}
 
-	chartWidth := svgWidth - leftMargin - rightMargin
-	groupHeight := barsPerGroup*barHeight + (barsPerGroup-1)*barGap
-	totalGroupHeight := groupHeight + groupGap
-	chartHeight := len(results)*totalGroupHeight - groupGap
-	svgHeight := topMargin + chartHeight + bottomMargin
+	categories := []string{"HTML Documentation", "JSON API Responses", "Source Code"}
+	categoryColors := map[string]string{
+		"HTML Documentation": "#3b82f6",
+		"JSON API Responses": "#f59e0b",
+		"Source Code":        "#22c55e",
+	}
+	categoryLabels := map[string]string{
+		"HTML Documentation": "HTML Pages",
+		"JSON API Responses": "JSON Responses",
+		"Source Code":        "Source Code",
+	}
 
-	// Find the max token count for scaling
-	maxTokens := 0
+	data := make(map[string][]point)
 	for _, r := range results {
-		if r.OriginalTokens > maxTokens {
-			maxTokens = r.OriginalTokens
+		data[r.Category] = append(data[r.Category], point{
+			pages:    r.Pages,
+			netPct:   r.NetTokenRatio * 100,
+			tokPct:   r.TokenRatio * 100,
+			origTok:  r.OriginalTokens,
+			savedTok: r.NetTokenSavings,
+		})
+	}
+
+	// Layout
+	const (
+		svgWidth    = 900
+		svgHeight   = 540
+		leftMargin  = 80
+		rightMargin = 30
+		topMargin   = 80
+		botMargin   = 120
+	)
+	chartW := svgWidth - leftMargin - rightMargin
+	chartH := svgHeight - topMargin - botMargin
+
+	// Y-axis range: find min and max net savings %
+	yMin := math.MaxFloat64
+	yMax := -math.MaxFloat64
+	for _, pts := range data {
+		for _, p := range pts {
+			if p.netPct < yMin {
+				yMin = p.netPct
+			}
+			if p.netPct > yMax {
+				yMax = p.netPct
+			}
 		}
 	}
-	if maxTokens == 0 {
-		maxTokens = 1
-	}
 
-	// Compute summary statistics
-	var sumBytePct, sumTokenPct, sumNetPct float64
-	for _, r := range results {
-		sumBytePct += r.ByteRatio * 100
-		sumTokenPct += r.TokenRatio * 100
-		sumNetPct += r.NetTokenRatio * 100
+	// Round axis bounds for nice ticks
+	yMin = math.Floor(yMin/10) * 10
+	if yMin > -10 {
+		yMin = -10
 	}
-	n := float64(len(results))
-	avgBytePct := sumBytePct / n
-	avgTokenPct := sumTokenPct / n
-	avgNetPct := sumNetPct / n
+	yMax = math.Ceil(yMax/10) * 10
+	if yMax < 10 {
+		yMax = 10
+	}
+	yRange := yMax - yMin
+
+	// X-axis: page counts
+	xTicks := []int{1, 5, 10, 15, 20}
+	xMin := 0.0
+	xMax := 22.0
+	xRange := xMax - xMin
+
+	toSvgX := func(pages int) int {
+		return leftMargin + int(float64(chartW)*(float64(pages)-xMin)/xRange)
+	}
+	toSvgY := func(pct float64) int {
+		return topMargin + int(float64(chartH)*(yMax-pct)/yRange)
+	}
 
 	// Colors
 	const (
-		colorOriginal   = "#94a3b8"
-		colorCompressed = "#3b82f6"
-		colorNet        = "#22c55e"
-		colorBg         = "#ffffff"
-		colorText       = "#1e293b"
-		colorGrid       = "#e2e8f0"
-		colorSubtext    = "#64748b"
+		colorBg      = "#ffffff"
+		colorText    = "#1e293b"
+		colorGrid    = "#e2e8f0"
+		colorSubtext = "#64748b"
+		colorZero    = "#cbd5e1"
 	)
 
 	var b strings.Builder
@@ -78,133 +117,175 @@ func GenerateGraph(results []BenchmarkResult, outputPath string) error {
 	// Styles
 	b.WriteString(`<style>`)
 	b.WriteString(fmt.Sprintf(`
-    .title { font-family: Arial, Helvetica, sans-serif; font-size: 20px; font-weight: bold; fill: %s; }
-    .subtitle { font-family: Arial, Helvetica, sans-serif; font-size: 13px; fill: %s; }
-    .label { font-family: Arial, Helvetica, sans-serif; font-size: 12px; fill: %s; }
-    .label-cat { font-family: Arial, Helvetica, sans-serif; font-size: 10px; fill: %s; }
-    .value { font-family: Arial, Helvetica, sans-serif; font-size: 11px; fill: %s; }
+    .title { font-family: Arial, Helvetica, sans-serif; font-size: 18px; font-weight: bold; fill: %s; }
+    .subtitle { font-family: Arial, Helvetica, sans-serif; font-size: 12px; fill: %s; }
+    .axis-label { font-family: Arial, Helvetica, sans-serif; font-size: 11px; fill: %s; }
+    .axis-title { font-family: Arial, Helvetica, sans-serif; font-size: 12px; fill: %s; font-weight: bold; }
     .legend-text { font-family: Arial, Helvetica, sans-serif; font-size: 11px; fill: %s; }
-    .summary-title { font-family: Arial, Helvetica, sans-serif; font-size: 13px; font-weight: bold; fill: %s; }
-    .summary-text { font-family: Arial, Helvetica, sans-serif; font-size: 12px; fill: %s; }
-    .summary-note { font-family: Arial, Helvetica, sans-serif; font-size: 10px; fill: %s; font-style: italic; }
-  `, colorText, colorSubtext, colorText, colorSubtext, colorText, colorText, colorText, colorText, colorSubtext))
+    .note { font-family: Arial, Helvetica, sans-serif; font-size: 10px; fill: %s; font-style: italic; }
+    .data-label { font-family: Arial, Helvetica, sans-serif; font-size: 10px; font-weight: bold; }
+  `, colorText, colorSubtext, colorSubtext, colorText, colorText, colorSubtext))
 	b.WriteString(`</style>`)
 	b.WriteString("\n")
 
-	// Title and subtitle
-	b.WriteString(fmt.Sprintf(`<text x="%d" y="35" class="title">UCCP Compression Benchmarks</text>`, leftMargin))
+	// Title
+	b.WriteString(fmt.Sprintf(`<text x="%d" y="30" class="title">UCCP Compression: Token Savings at Scale</text>`, leftMargin))
 	b.WriteString("\n")
-	b.WriteString(fmt.Sprintf(`<text x="%d" y="55" class="subtitle">Token savings measured with cl100k_base tokenizer</text>`, leftMargin))
+	b.WriteString(fmt.Sprintf(`<text x="%d" y="48" class="subtitle">Net token savings (%%) vs content size — measured with tiktoken cl100k_base (includes system prompt overhead)</text>`, leftMargin))
 	b.WriteString("\n")
 
-	// Legend (right-aligned, stacked vertically)
-	legendX := svgWidth - rightMargin - 230
-	legendY := 20
-	legends := []struct {
-		color string
-		label string
-	}{
-		{colorOriginal, "Original tokens"},
-		{colorCompressed, "Compressed tokens"},
-		{colorNet, "Net tokens (with prompt overhead)"},
-	}
-	for i, lg := range legends {
-		ly := legendY + i*16
-		b.WriteString(fmt.Sprintf(`<rect x="%d" y="%d" width="12" height="12" rx="2" fill="%s"/>`, legendX, ly, lg.color))
-		b.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="legend-text">%s</text>`, legendX+16, ly+10, lg.label))
+	// Legend
+	legendX := svgWidth - rightMargin - 140
+	for i, cat := range categories {
+		ly := 18 + i*18
+		color := categoryColors[cat]
+		label := categoryLabels[cat]
+		b.WriteString(fmt.Sprintf(`<line x1="%d" y1="%d" x2="%d" y2="%d" stroke="%s" stroke-width="3"/>`,
+			legendX, ly, legendX+20, ly, color))
+		b.WriteString(fmt.Sprintf(`<circle cx="%d" cy="%d" r="3" fill="%s"/>`,
+			legendX+10, ly, color))
+		b.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="legend-text" dominant-baseline="central">%s</text>`,
+			legendX+26, ly, label))
 		b.WriteString("\n")
 	}
 
-	// Grid lines
-	gridSteps := 5
-	for i := 0; i <= gridSteps; i++ {
-		x := leftMargin + int(float64(chartWidth)*float64(i)/float64(gridSteps))
-		y1 := topMargin
-		y2 := topMargin + chartHeight
-		b.WriteString(fmt.Sprintf(`<line x1="%d" y1="%d" x2="%d" y2="%d" stroke="%s" stroke-width="1"/>`, x, y1, x, y2, colorGrid))
+	// Y-axis grid lines and labels
+	yStep := 10.0
+	if yRange > 80 {
+		yStep = 20
+	}
+	for y := yMin; y <= yMax; y += yStep {
+		sy := toSvgY(y)
+		strokeColor := colorGrid
+		strokeWidth := "1"
+		if y == 0 {
+			strokeColor = colorZero
+			strokeWidth = "2"
+		}
+		b.WriteString(fmt.Sprintf(`<line x1="%d" y1="%d" x2="%d" y2="%d" stroke="%s" stroke-width="%s"/>`,
+			leftMargin, sy, leftMargin+chartW, sy, strokeColor, strokeWidth))
 		b.WriteString("\n")
-		tokenVal := int(float64(maxTokens) * float64(i) / float64(gridSteps))
-		b.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="label-cat" text-anchor="middle">%s</text>`, x, y1-5, formatInt(tokenVal)))
+		b.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="axis-label" text-anchor="end" dominant-baseline="central">%.0f%%</text>`,
+			leftMargin-8, sy, y))
 		b.WriteString("\n")
 	}
 
-	// Bars
-	for i, r := range results {
-		groupY := topMargin + i*totalGroupHeight
-		labelY := groupY + groupHeight/2
-
-		// File name label
-		b.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="label" text-anchor="end" dominant-baseline="central">%s</text>`, leftMargin-10, labelY-7, escapeXML(r.Name)))
+	// X-axis ticks and labels
+	for _, x := range xTicks {
+		sx := toSvgX(x)
+		b.WriteString(fmt.Sprintf(`<line x1="%d" y1="%d" x2="%d" y2="%d" stroke="%s" stroke-width="1"/>`,
+			sx, topMargin, sx, topMargin+chartH, colorGrid))
 		b.WriteString("\n")
-		// Category label
-		b.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="label-cat" text-anchor="end" dominant-baseline="central">%s</text>`, leftMargin-10, labelY+8, escapeXML(r.Category)))
+		b.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="axis-label" text-anchor="middle">%d</text>`,
+			sx, topMargin+chartH+18, x))
 		b.WriteString("\n")
+	}
 
-		netTokens := r.CompressedTokens + r.SystemPromptTokens
+	// Axis titles
+	b.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="axis-title" text-anchor="middle">Number of pages / files</text>`,
+		leftMargin+chartW/2, topMargin+chartH+38))
+	b.WriteString("\n")
+	// Rotated Y axis title
+	b.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="axis-title" text-anchor="middle" transform="rotate(-90 %d %d)">Net token savings (%%)</text>`,
+		20, topMargin+chartH/2, 20, topMargin+chartH/2))
+	b.WriteString("\n")
 
-		bars := []struct {
-			value int
-			color string
-			pct   string
-		}{
-			{r.OriginalTokens, colorOriginal, ""},
-			{r.CompressedTokens, colorCompressed, fmt.Sprintf("-%.0f%%", r.TokenRatio*100)},
-			{netTokens, colorNet, fmt.Sprintf("-%.0f%% net", r.NetTokenRatio*100)},
+	// Chart border (axes)
+	b.WriteString(fmt.Sprintf(`<line x1="%d" y1="%d" x2="%d" y2="%d" stroke="%s" stroke-width="2"/>`,
+		leftMargin, topMargin, leftMargin, topMargin+chartH, colorSubtext))
+	b.WriteString("\n")
+	b.WriteString(fmt.Sprintf(`<line x1="%d" y1="%d" x2="%d" y2="%d" stroke="%s" stroke-width="2"/>`,
+		leftMargin, topMargin+chartH, leftMargin+chartW, topMargin+chartH, colorSubtext))
+	b.WriteString("\n")
+
+	// Plot lines and data points for each category
+	for _, cat := range categories {
+		pts, ok := data[cat]
+		if !ok || len(pts) == 0 {
+			continue
+		}
+		color := categoryColors[cat]
+
+		// Build polyline points
+		var polyPoints []string
+		for _, p := range pts {
+			sx := toSvgX(p.pages)
+			sy := toSvgY(p.netPct)
+			polyPoints = append(polyPoints, fmt.Sprintf("%d,%d", sx, sy))
 		}
 
-		for j, bar := range bars {
-			barY := groupY + j*(barHeight+barGap)
-			barW := int(float64(chartWidth) * float64(bar.value) / float64(maxTokens))
-			if barW < 1 && bar.value > 0 {
-				barW = 1
-			}
+		// Line
+		b.WriteString(fmt.Sprintf(`<polyline points="%s" fill="none" stroke="%s" stroke-width="2.5" stroke-linejoin="round"/>`,
+			strings.Join(polyPoints, " "), color))
+		b.WriteString("\n")
 
-			b.WriteString(fmt.Sprintf(`<rect x="%d" y="%d" width="%d" height="%d" rx="3" fill="%s"/>`,
-				leftMargin, barY, barW, barHeight, bar.color))
+		// Data points and labels
+		for _, p := range pts {
+			sx := toSvgX(p.pages)
+			sy := toSvgY(p.netPct)
+
+			// Circle marker
+			b.WriteString(fmt.Sprintf(`<circle cx="%d" cy="%d" r="4" fill="%s" stroke="white" stroke-width="1.5"/>`,
+				sx, sy, color))
 			b.WriteString("\n")
 
-			valLabel := formatInt(bar.value)
-			if bar.pct != "" {
-				valLabel = fmt.Sprintf("%s (%s)", valLabel, bar.pct)
+			// Label on last point and first point
+			if p.pages == 20 || p.pages == 1 {
+				labelY := sy - 10
+				anchor := "middle"
+				if p.pages == 20 {
+					anchor = "end"
+				}
+				if p.pages == 1 {
+					anchor = "start"
+				}
+				sign := ""
+				if p.netPct >= 0 {
+					sign = "+"
+				}
+				b.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="data-label" fill="%s" text-anchor="%s">%s%.1f%%</text>`,
+					sx, labelY, color, anchor, sign, p.netPct))
+				b.WriteString("\n")
 			}
-			textX := leftMargin + barW + 6
-			b.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="value" dominant-baseline="central">%s</text>`,
-				textX, barY+barHeight/2, valLabel))
-			b.WriteString("\n")
 		}
 	}
 
-	// Summary box
-	summaryY := topMargin + chartHeight + 25
+	// Summary box at bottom
+	boxY := svgHeight - botMargin + 55
 	boxX := leftMargin
-	boxW := chartWidth
-	boxH := 90
+	boxW := chartW
+	boxH := 70
 
 	b.WriteString(fmt.Sprintf(`<rect x="%d" y="%d" width="%d" height="%d" rx="6" fill="#f8fafc" stroke="%s" stroke-width="1"/>`,
-		boxX, summaryY, boxW, boxH, colorGrid))
+		boxX, boxY, boxW, boxH, colorGrid))
 	b.WriteString("\n")
 
-	b.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="summary-title">Summary (averages across %d files)</text>`,
-		boxX+15, summaryY+22, len(results)))
+	// Summary: at 20 pages — three columns
+	summaryY := boxY + 18
+	b.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="axis-title">At 20 pages/files:</text>`, boxX+12, summaryY))
 	b.WriteString("\n")
 
-	col1X := boxX + 15
-	col2X := boxX + boxW/3
-	col3X := boxX + 2*boxW/3
-	statsY := summaryY + 45
+	colW := boxW / 3
+	colIdx := 0
+	for _, cat := range categories {
+		pts := data[cat]
+		for _, p := range pts {
+			if p.pages == 20 {
+				sign := ""
+				if p.netPct >= 0 {
+					sign = "+"
+				}
+				cx := boxX + 12 + colIdx*colW
+				b.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="axis-label" fill="%s">%s: %s%.1f%% net (%s tokens)</text>`,
+					cx, summaryY+18, categoryColors[cat], categoryLabels[cat], sign, p.netPct, formatInt(p.savedTok)))
+				b.WriteString("\n")
+				colIdx++
+			}
+		}
+	}
 
-	b.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="summary-text">Byte compression: %.1f%%</text>`,
-		col1X, statsY, avgBytePct))
-	b.WriteString("\n")
-	b.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="summary-text">Token compression: %.1f%%</text>`,
-		col2X, statsY, avgTokenPct))
-	b.WriteString("\n")
-	b.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="summary-text">Net token savings: %.1f%%</text>`,
-		col3X, statsY, avgNetPct))
-	b.WriteString("\n")
-
-	b.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="summary-note">Measured with tiktoken cl100k_base · net includes system prompt overhead per domain</text>`,
-		col1X, statsY+25))
+	b.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="note">Token counts measured with tiktoken cl100k_base · net savings include one-time system prompt overhead per domain</text>`,
+		boxX+12, summaryY+38))
 	b.WriteString("\n")
 
 	b.WriteString("</svg>\n")

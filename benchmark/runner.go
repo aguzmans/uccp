@@ -14,11 +14,12 @@ import (
 	"github.com/pkoukk/tiktoken-go"
 )
 
-// BenchmarkResult holds the results for a single file benchmark
+// BenchmarkResult holds the results for a single scale benchmark
 type BenchmarkResult struct {
 	Name     string
 	Domain   string
 	Category string
+	Pages    int
 
 	// Byte metrics
 	OriginalBytes   int
@@ -39,17 +40,6 @@ type BenchmarkResult struct {
 
 	// Performance
 	CompressTime time.Duration
-
-	// Whether compression was applied (ShouldCompress decision)
-	WasCompressed bool
-}
-
-// TestFile describes a test data file for benchmarking.
-type TestFile struct {
-	Name     string // display name
-	Path     string // relative path under testDataDir
-	Domain   string // "html" or "code"
-	Category string // e.g. "documentation", "source", "config"
 }
 
 var (
@@ -66,7 +56,6 @@ func getTokenizer() (*tiktoken.Tiktoken, error) {
 }
 
 // countTokens uses tiktoken-go with cl100k_base encoding to count tokens.
-// Falls back to a chars/4 estimate if tiktoken fails to initialize.
 func countTokens(text string) int {
 	enc, err := getTokenizer()
 	if err != nil {
@@ -77,39 +66,34 @@ func countTokens(text string) int {
 	return len(tokens)
 }
 
-// compressorForFile returns the appropriate compressor based on file extension.
-func compressorForFile(path string) core.Compressor {
-	ext := strings.ToLower(filepath.Ext(path))
-	switch ext {
-	case ".html":
+// compressorForDomain returns the appropriate compressor based on domain string.
+func compressorForDomain(domain string) core.Compressor {
+	switch domain {
+	case "html":
 		return domains.NewHTMLCompressor()
-	case ".go", ".tsx", ".py", ".json":
-		return domains.NewCodeCompressor()
 	default:
-		// Default to code compressor for unknown extensions
 		return domains.NewCodeCompressor()
 	}
 }
 
-// RunBenchmarks iterates over all test files from TestDataFiles(),
-// reads each, compresses with the appropriate domain compressor,
-// and measures byte/token metrics using tiktoken for real token counts.
+// RunBenchmarks iterates over all scale tests, reads each generated file,
+// compresses with the appropriate domain compressor, and measures byte/token
+// metrics using tiktoken for real token counts.
 func RunBenchmarks(testDataDir string) ([]BenchmarkResult, error) {
-	files := TestDataFiles()
+	tests := ScaleBenchmarks()
 	var results []BenchmarkResult
 
-	for _, tf := range files {
-		fullPath := filepath.Join(testDataDir, tf.Path)
+	for _, st := range tests {
+		fullPath := filepath.Join(testDataDir, st.Path)
 
 		content, err := os.ReadFile(fullPath)
 		if err != nil {
-			// Skip files that don't exist rather than failing the whole benchmark
-			log.Printf("WARNING: skipping %s: %v", tf.Name, err)
+			log.Printf("WARNING: skipping %s: %v", st.Name, err)
 			continue
 		}
 
 		original := string(content)
-		compressor := compressorForFile(tf.Path)
+		compressor := compressorForDomain(st.Domain)
 
 		// Measure compression time
 		start := time.Now()
@@ -117,7 +101,7 @@ func RunBenchmarks(testDataDir string) ([]BenchmarkResult, error) {
 		elapsed := time.Since(start)
 
 		if compErr != nil {
-			log.Printf("WARNING: compression failed for %s: %v", tf.Name, compErr)
+			log.Printf("WARNING: compression failed for %s: %v", st.Name, compErr)
 			continue
 		}
 
@@ -128,9 +112,6 @@ func RunBenchmarks(testDataDir string) ([]BenchmarkResult, error) {
 		if origBytes > 0 {
 			byteRatio = 1.0 - float64(compBytes)/float64(origBytes)
 		}
-		if byteRatio < 0 {
-			byteRatio = 0
-		}
 
 		// Token metrics using tiktoken
 		origTokens := countTokens(original)
@@ -138,9 +119,6 @@ func RunBenchmarks(testDataDir string) ([]BenchmarkResult, error) {
 		var tokenRatio float64
 		if origTokens > 0 {
 			tokenRatio = 1.0 - float64(compTokens)/float64(origTokens)
-		}
-		if tokenRatio < 0 {
-			tokenRatio = 0
 		}
 
 		// System prompt overhead
@@ -154,13 +132,11 @@ func RunBenchmarks(testDataDir string) ([]BenchmarkResult, error) {
 			netRatio = float64(netSavings) / float64(origTokens)
 		}
 
-		// Determine if ShouldCompress would have applied compression
-		decision := core.ShouldCompress(compressor, original, core.DefaultThresholds)
-
 		results = append(results, BenchmarkResult{
-			Name:               tf.Name,
-			Domain:             tf.Domain,
-			Category:           tf.Category,
+			Name:               st.Name,
+			Domain:             st.Domain,
+			Category:           st.Category,
+			Pages:              st.Pages,
 			OriginalBytes:      origBytes,
 			CompressedBytes:    compBytes,
 			ByteRatio:          byteRatio,
@@ -171,7 +147,6 @@ func RunBenchmarks(testDataDir string) ([]BenchmarkResult, error) {
 			NetTokenSavings:    netSavings,
 			NetTokenRatio:      netRatio,
 			CompressTime:       elapsed,
-			WasCompressed:      decision.WasCompressed,
 		})
 	}
 
@@ -189,33 +164,26 @@ func PrintResults(results []BenchmarkResult) {
 		return
 	}
 
-	// Header
-	fmt.Println(strings.Repeat("=", 120))
-	fmt.Println("UCCP Compression Benchmark Results")
-	fmt.Println(strings.Repeat("=", 120))
-	fmt.Printf("%-20s %-8s %-10s %10s %10s %8s %10s %10s %8s %8s %10s\n",
-		"Name", "Domain", "Category",
+	fmt.Println(strings.Repeat("=", 130))
+	fmt.Println("UCCP Compression Benchmark Results (tiktoken cl100k_base)")
+	fmt.Println(strings.Repeat("=", 130))
+	fmt.Printf("%-22s %5s %-18s %10s %10s %8s %10s %10s %8s %8s %10s\n",
+		"Name", "Pages", "Category",
 		"Orig(B)", "Comp(B)", "Byte%",
 		"OrigTok", "CompTok", "Tok%",
 		"NetTok", "Time",
 	)
-	fmt.Println(strings.Repeat("-", 120))
+	fmt.Println(strings.Repeat("-", 130))
 
-	// Rows
 	var totalOrigBytes, totalCompBytes int
 	var totalOrigTokens, totalCompTokens int
 	var totalNetSavings int
 
 	for _, r := range results {
-		compressed := "  "
-		if r.WasCompressed {
-			compressed = "Y "
-		}
-
-		fmt.Printf("%-20s %-8s %-10s %10d %10d %7.1f%% %10d %10d %7.1f%% %+8d %10s %s\n",
-			truncate(r.Name, 20),
-			r.Domain,
-			r.Category,
+		fmt.Printf("%-22s %5d %-18s %10d %10d %7.1f%% %10d %10d %7.1f%% %+8d %10s\n",
+			truncate(r.Name, 22),
+			r.Pages,
+			truncate(r.Category, 18),
 			r.OriginalBytes,
 			r.CompressedBytes,
 			r.ByteRatio*100,
@@ -223,8 +191,7 @@ func PrintResults(results []BenchmarkResult) {
 			r.CompressedTokens,
 			r.TokenRatio*100,
 			r.NetTokenSavings,
-			r.CompressTime.Round(time.Microsecond),
-			compressed,
+			r.CompressTime.Round(time.Millisecond),
 		)
 
 		totalOrigBytes += r.OriginalBytes
@@ -234,8 +201,7 @@ func PrintResults(results []BenchmarkResult) {
 		totalNetSavings += r.NetTokenSavings
 	}
 
-	// Summary
-	fmt.Println(strings.Repeat("-", 120))
+	fmt.Println(strings.Repeat("-", 130))
 
 	var totalByteRatio, totalTokenRatio float64
 	if totalOrigBytes > 0 {
@@ -245,7 +211,7 @@ func PrintResults(results []BenchmarkResult) {
 		totalTokenRatio = 1.0 - float64(totalCompTokens)/float64(totalOrigTokens)
 	}
 
-	fmt.Printf("%-20s %-8s %-10s %10d %10d %7.1f%% %10d %10d %7.1f%% %+8d\n",
+	fmt.Printf("%-22s %5s %-18s %10d %10d %7.1f%% %10d %10d %7.1f%% %+8d\n",
 		"TOTAL", "", "",
 		totalOrigBytes,
 		totalCompBytes,
@@ -255,9 +221,8 @@ func PrintResults(results []BenchmarkResult) {
 		totalTokenRatio*100,
 		totalNetSavings,
 	)
-	fmt.Println(strings.Repeat("=", 120))
+	fmt.Println(strings.Repeat("=", 130))
 
-	// Token cost estimate
 	fmt.Printf("\nEstimated monthly savings at 1000 calls/day: $%.2f\n",
 		core.CalculateCostSavings(totalNetSavings*1000))
 }

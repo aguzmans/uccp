@@ -980,7 +980,7 @@ export default function %s() {
 `, comp, comp, comp, comp, comp, comp, comp, comp, comp,
 		comp, comp, comp,
 		comp, comp, comp, comp, comp,
-		comp, comp, comp,
+		comp, comp,
 	)
 }
 
@@ -1232,6 +1232,7 @@ def health(db: Session = Depends(get_db)):
 		svc, strings.Title(svc), strings.Title(svc), strings.Title(svc), strings.Title(svc), strings.Title(svc),
 		strings.Title(svc),
 		svc, strings.Title(svc), strings.Title(svc), strings.Title(svc), strings.Title(svc), strings.Title(svc),
+		strings.Title(svc), strings.Title(svc),
 		strings.Title(svc), strings.Title(svc),
 		svc, strings.Title(svc), strings.Title(svc),
 		svc, strings.Title(svc),
