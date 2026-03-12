@@ -45,7 +45,7 @@ UCCP provides:
 
 **Before UCCP:**
 ```
-Manager reads 34 completed jobs:
+Agent A reads 34 completed jobs:
 - 34 × 50KB JSON = 1.7MB
 - ~400,000 tokens
 - $1.20 per read
@@ -53,7 +53,7 @@ Manager reads 34 completed jobs:
 
 **After UCCP:**
 ```
-Manager reads 34 compressed summaries:
+Same Agent A reads 34 compressed summaries:
 - 34 × 150 bytes UCCP = 5.1KB
 - ~1,300 tokens
 - $0.004 per read
