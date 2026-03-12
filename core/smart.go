@@ -15,6 +15,11 @@ type CompressionThresholds struct {
 	// MinRatio is the minimum compression ratio required to use compression
 	// Example: 0.30 means compression must save at least 30% to be applied
 	MinRatio float64
+
+	// SystemPromptOverhead is the estimated token cost of the UCCP system prompt.
+	// When set, ShouldCompress will factor this into the net savings calculation.
+	// If 0, system prompt cost is ignored (backward-compatible default).
+	SystemPromptOverhead int
 }
 
 // DefaultThresholds provide sensible defaults for most use cases
@@ -70,12 +75,30 @@ func ShouldCompress(compressor Compressor, content string, thresholds Compressio
 		return result
 	}
 
+	// Check 4: Factor in system prompt overhead if configured
+	if thresholds.SystemPromptOverhead > 0 {
+		netSavings := NetTokenSavings(
+			EstimateTokenCount(content),
+			EstimateTokenCount(compressed),
+			thresholds.SystemPromptOverhead,
+		)
+		if netSavings <= 0 {
+			// System prompt overhead exceeds compression savings
+			return result
+		}
+	}
+
 	// Compression is beneficial!
 	result.Compressed = compressed
 	result.WasCompressed = true
 	result.Ratio = ratio
 	result.CompressedSize = compressedSize
 	result.EstimatedTokenSavings = EstimateTokenSavings(content, compressed)
+	result.NetTokenSavings = NetTokenSavings(
+		EstimateTokenCount(content),
+		EstimateTokenCount(compressed),
+		thresholds.SystemPromptOverhead,
+	)
 
 	return result
 }

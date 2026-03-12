@@ -10,7 +10,8 @@ import (
 )
 
 func main() {
-	fmt.Println("UCCP - Ultra-Compact Content Protocol Examples\n")
+	fmt.Println("UCCP - Ultra-Compact Content Protocol Examples")
+	fmt.Println()
 
 	// Example 1: Basic compression
 	fmt.Println("=== Example 1: Basic Compression ===")
@@ -189,7 +190,8 @@ func statsExample() {
 		"Deployed application to production environment with zero downtime",
 	}
 
-	fmt.Println("Compressing multiple messages...\n")
+	fmt.Println("Compressing multiple messages...")
+	fmt.Println()
 
 	for _, msg := range messages {
 		result := core.ShouldCompress(compressor, msg, core.DefaultThresholds)

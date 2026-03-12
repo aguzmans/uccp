@@ -463,6 +463,13 @@ var abbrevMap = map[string]string{
 	"pagination":      "pag",
 }
 
+// Pre-compiled regexes for compress and compressCode
+var (
+	codeArticleRe    = regexp.MustCompile(`\b(the|a|an)\s`)
+	codeWhitespaceRe = regexp.MustCompile(`\s+`)
+	codeStepsRe      = regexp.MustCompile(`(?m)^\s*\d+\.\s*(.+)$`)
+)
+
 // Symbol replacements
 var symbolMap = map[string]string{
 	" implements ":    "→",
@@ -495,10 +502,10 @@ func compress(text string) string {
 	}
 
 	// Remove articles
-	text = regexp.MustCompile(`\b(the|a|an)\s`).ReplaceAllString(text, "")
+	text = codeArticleRe.ReplaceAllString(text, "")
 
 	// Collapse whitespace
-	text = regexp.MustCompile(`\s+`).ReplaceAllString(text, " ")
+	text = codeWhitespaceRe.ReplaceAllString(text, " ")
 
 	// Remove extra punctuation
 	text = strings.ReplaceAll(text, "  ", " ")
@@ -532,7 +539,7 @@ func compressCode(code string) string {
 	}
 
 	// Remove extra whitespace
-	code = regexp.MustCompile(`\s+`).ReplaceAllString(code, " ")
+	code = codeWhitespaceRe.ReplaceAllString(code, " ")
 
 	return strings.TrimSpace(code)
 }
@@ -566,7 +573,7 @@ func compressPath(path string) string {
 
 func parseSteps(description string) []string {
 	// Extract numbered steps from description
-	re := regexp.MustCompile(`(?m)^\s*\d+\.\s*(.+)$`)
+	re := codeStepsRe
 	matches := re.FindAllStringSubmatch(description, -1)
 
 	var steps []string

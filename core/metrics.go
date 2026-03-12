@@ -61,6 +61,13 @@ func EstimateTokenSavings(original, compressed string) int {
 	return savings
 }
 
+// NetTokenSavings calculates actual token savings after accounting for
+// the system prompt overhead that must be included when sending UCCP to an LLM.
+// Returns negative if compression actually costs more tokens than it saves.
+func NetTokenSavings(originalTokens, compressedTokens, systemPromptTokens int) int {
+	return originalTokens - compressedTokens - systemPromptTokens
+}
+
 // CalculateCostSavings estimates monthly cost savings
 // Assumes Claude API pricing: $3 per million input tokens
 func CalculateCostSavings(tokensSavedPerDay int) float64 {

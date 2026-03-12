@@ -55,6 +55,9 @@ type CompressionResult struct {
 	// EstimatedTokenSavings is approximate tokens saved
 	EstimatedTokenSavings int
 
+	// NetTokenSavings accounts for system prompt overhead (may be negative)
+	NetTokenSavings int
+
 	// Domain used for compression
 	Domain Domain
 }

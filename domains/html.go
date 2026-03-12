@@ -7,6 +7,53 @@ import (
 	"github.com/aguzmans/uccp/core"
 )
 
+// Pre-compiled regexes for HTML parsing and compression
+var (
+	// removeNoiseBlocks: tag-specific regexes
+	htmlNoiseRe = map[string]*regexp.Regexp{
+		"script": regexp.MustCompile(`(?is)<script[^>]*>.*?</script>`),
+		"style":  regexp.MustCompile(`(?is)<style[^>]*>.*?</style>`),
+		"nav":    regexp.MustCompile(`(?is)<nav[^>]*>.*?</nav>`),
+		"header": regexp.MustCompile(`(?is)<header[^>]*>.*?</header>`),
+		"footer": regexp.MustCompile(`(?is)<footer[^>]*>.*?</footer>`),
+	}
+
+	// extractHeadings: tag-specific regexes
+	htmlHeadingRe = map[string]*regexp.Regexp{
+		"h1": regexp.MustCompile(`(?is)<h1[^>]*>(.*?)</h1>`),
+		"h2": regexp.MustCompile(`(?is)<h2[^>]*>(.*?)</h2>`),
+		"h3": regexp.MustCompile(`(?is)<h3[^>]*>(.*?)</h3>`),
+		"h4": regexp.MustCompile(`(?is)<h4[^>]*>(.*?)</h4>`),
+	}
+
+	// extractCodeBlocks
+	htmlCodeLangRe = regexp.MustCompile(`(?is)<pre[^>]*>\s*<code[^>]*class="[^"]*language-([^"\s]+)[^"]*"[^>]*>(.*?)</code>\s*</pre>`)
+	htmlCodeRe     = regexp.MustCompile(`(?is)<pre[^>]*>\s*<code[^>]*>(.*?)</code>\s*</pre>`)
+
+	// extractLists
+	htmlListRe = regexp.MustCompile(`(?is)<li[^>]*>(.*?)</li>`)
+
+	// extractTables
+	htmlTableRowRe  = regexp.MustCompile(`(?is)<tr[^>]*>(.*?)</tr>`)
+	htmlTableCellRe = regexp.MustCompile(`(?is)<t[hd][^>]*>(.*?)</t[hd]>`)
+
+	// extractParagraphs
+	htmlParagraphRe = regexp.MustCompile(`(?is)<p[^>]*>(.*?)</p>`)
+
+	// extractLinks
+	htmlLinkRe = regexp.MustCompile(`(?is)<a[^>]*href="([^"]+)"[^>]*>(.*?)</a>`)
+
+	// htmlCompress
+	htmlArticleRe    = regexp.MustCompile(`\b(the|a|an)\s`)
+	htmlWhitespaceRe = regexp.MustCompile(`\s+`)
+
+	// htmlCompressCode
+	htmlBlankLineRe = regexp.MustCompile(`\n\s*\n`)
+
+	// cleanText
+	htmlTagsRe = regexp.MustCompile(`<[^>]*>`)
+)
+
 // HTMLCompressor compresses HTML and web content into UCCP format.
 // Optimized for web scraping and content extraction use cases where
 // HTML pages need to be fed to LLMs with maximum token efficiency.
@@ -121,15 +168,14 @@ func parseHTML(html string) []htmlNode {
 
 func removeNoiseBlocks(html string) string {
 	for _, tag := range []string{"script", "style", "nav", "header", "footer"} {
-		re := regexp.MustCompile(`(?is)<` + tag + `[^>]*>.*?</` + tag + `>`)
-		html = re.ReplaceAllString(html, "")
+		html = htmlNoiseRe[tag].ReplaceAllString(html, "")
 	}
 	return html
 }
 
 func extractHeadings(html, tag string) []htmlNode {
 	var nodes []htmlNode
-	re := regexp.MustCompile(`(?is)<` + tag + `[^>]*>(.*?)</` + tag + `>`)
+	re := htmlHeadingRe[tag]
 	for _, match := range re.FindAllStringSubmatch(html, -1) {
 		if len(match) > 1 {
 			text := cleanText(match[1])
@@ -145,8 +191,7 @@ func extractCodeBlocks(html string) []htmlNode {
 	var nodes []htmlNode
 
 	// <pre><code class="language-X">...</code></pre>
-	reLang := regexp.MustCompile(`(?is)<pre[^>]*>\s*<code[^>]*class="[^"]*language-([^"\s]+)[^"]*"[^>]*>(.*?)</code>\s*</pre>`)
-	for _, match := range reLang.FindAllStringSubmatch(html, -1) {
+	for _, match := range htmlCodeLangRe.FindAllStringSubmatch(html, -1) {
 		if len(match) > 2 {
 			nodes = append(nodes, htmlNode{
 				Type:     "code",
@@ -157,8 +202,7 @@ func extractCodeBlocks(html string) []htmlNode {
 	}
 
 	// <pre><code>...</code></pre> (no language)
-	reCode := regexp.MustCompile(`(?is)<pre[^>]*>\s*<code[^>]*>(.*?)</code>\s*</pre>`)
-	for _, match := range reCode.FindAllStringSubmatch(html, -1) {
+	for _, match := range htmlCodeRe.FindAllStringSubmatch(html, -1) {
 		if len(match) > 1 {
 			code := decodeHTMLEntities(match[1])
 			alreadyFound := false
@@ -179,7 +223,7 @@ func extractCodeBlocks(html string) []htmlNode {
 
 func extractLists(html string) []htmlNode {
 	var nodes []htmlNode
-	re := regexp.MustCompile(`(?is)<li[^>]*>(.*?)</li>`)
+	re := htmlListRe
 	for _, match := range re.FindAllStringSubmatch(html, -1) {
 		if len(match) > 1 {
 			text := cleanText(match[1])
@@ -193,8 +237,8 @@ func extractLists(html string) []htmlNode {
 
 func extractTables(html string) []htmlNode {
 	var nodes []htmlNode
-	reTr := regexp.MustCompile(`(?is)<tr[^>]*>(.*?)</tr>`)
-	reCell := regexp.MustCompile(`(?is)<t[hd][^>]*>(.*?)</t[hd]>`)
+	reTr := htmlTableRowRe
+	reCell := htmlTableCellRe
 
 	for _, match := range reTr.FindAllStringSubmatch(html, -1) {
 		if len(match) > 1 {
@@ -217,7 +261,7 @@ func extractTables(html string) []htmlNode {
 
 func extractParagraphs(html string) []htmlNode {
 	var nodes []htmlNode
-	re := regexp.MustCompile(`(?is)<p[^>]*>(.*?)</p>`)
+	re := htmlParagraphRe
 	for _, match := range re.FindAllStringSubmatch(html, -1) {
 		if len(match) > 1 {
 			text := cleanText(match[1])
@@ -231,7 +275,7 @@ func extractParagraphs(html string) []htmlNode {
 
 func extractLinks(html string) []htmlNode {
 	var nodes []htmlNode
-	re := regexp.MustCompile(`(?is)<a[^>]*href="([^"]+)"[^>]*>(.*?)</a>`)
+	re := htmlLinkRe
 	for _, match := range re.FindAllStringSubmatch(html, -1) {
 		if len(match) > 2 {
 			href := match[1]
@@ -359,19 +403,19 @@ func htmlCompress(text string) string {
 	}
 
 	// Remove articles
-	text = regexp.MustCompile(`\b(the|a|an)\s`).ReplaceAllString(text, "")
+	text = htmlArticleRe.ReplaceAllString(text, "")
 
 	// Clean up punctuation and whitespace
 	text = strings.ReplaceAll(text, "  ", " ")
 	text = strings.ReplaceAll(text, " .", ".")
 	text = strings.ReplaceAll(text, " ,", ",")
-	text = regexp.MustCompile(`\s+`).ReplaceAllString(text, " ")
+	text = htmlWhitespaceRe.ReplaceAllString(text, " ")
 
 	return strings.TrimSpace(text)
 }
 
 func htmlCompressCode(code string) string {
-	code = regexp.MustCompile(`\n\s*\n`).ReplaceAllString(code, "\n")
+	code = htmlBlankLineRe.ReplaceAllString(code, "\n")
 	code = strings.TrimSpace(code)
 	code = strings.ReplaceAll(code, "return true", "ret 1")
 	code = strings.ReplaceAll(code, "return false", "ret 0")
@@ -408,10 +452,9 @@ func htmlLangCode(lang string) string {
 // --- Text helpers ---
 
 func cleanText(s string) string {
-	reTags := regexp.MustCompile(`<[^>]*>`)
-	s = reTags.ReplaceAllString(s, " ")
+	s = htmlTagsRe.ReplaceAllString(s, " ")
 	s = decodeHTMLEntities(s)
-	s = regexp.MustCompile(`\s+`).ReplaceAllString(s, " ")
+	s = htmlWhitespaceRe.ReplaceAllString(s, " ")
 	return strings.TrimSpace(s)
 }
 
