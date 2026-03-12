@@ -32,37 +32,37 @@ This is a comprehensive project for building web applications.
 
 ## Installation
 
-\`\`\`bash
+` + "`" + `` + "`" + `` + "`" + `bash
 npm install
 npm run migrate
 npm run seed
 npm start
-\`\`\`
+` + "`" + `` + "`" + `` + "`" + `
 
 ## Configuration
 
-Create a \`.env\` file with the following variables:
+Create a ` + "`" + `.env` + "`" + ` file with the following variables:
 
-\`\`\`env
+` + "`" + `` + "`" + `` + "`" + `env
 DATABASE_URL=postgresql://localhost:5432/myapp
 JWT_SECRET=your-secret-key
 PORT=3000
-\`\`\`
+` + "`" + `` + "`" + `` + "`" + `
 
 ## API Endpoints
 
 ### Authentication
 
-- \`POST /auth/login\` - Login with email and password
-- \`POST /auth/register\` - Register new user
-- \`POST /auth/refresh\` - Refresh access token
+- ` + "`" + `POST /auth/login` + "`" + ` - Login with email and password
+- ` + "`" + `POST /auth/register` + "`" + ` - Register new user
+- ` + "`" + `POST /auth/refresh` + "`" + ` - Refresh access token
 
 ### Users
 
-- \`GET /users\` - List all users (admin only)
-- \`GET /users/:id\` - Get user by ID
-- \`PUT /users/:id\` - Update user
-- \`DELETE /users/:id\` - Delete user (admin only)
+- ` + "`" + `GET /users` + "`" + ` - List all users (admin only)
+- ` + "`" + `GET /users/:id` + "`" + ` - Get user by ID
+- ` + "`" + `PUT /users/:id` + "`" + ` - Update user
+- ` + "`" + `DELETE /users/:id` + "`" + ` - Delete user (admin only)
 
 ## License
 
@@ -79,9 +79,9 @@ MIT License - see LICENSE file for details.
 
 ### List Users
 
-\`\`\`http
+` + "`" + `` + "`" + `` + "`" + `http
 GET /api/users
-\`\`\`
+` + "`" + `` + "`" + `` + "`" + `
 
 **Query Parameters:**
 
@@ -93,7 +93,7 @@ GET /api/users
 
 **Response:**
 
-\`\`\`json
+` + "`" + `` + "`" + `` + "`" + `json
 {
   "data": [
     {
@@ -105,34 +105,34 @@ GET /api/users
   "total": 100,
   "page": 1
 }
-\`\`\`
+` + "`" + `` + "`" + `` + "`" + `
 
 ### Create User
 
-\`\`\`http
+` + "`" + `` + "`" + `` + "`" + `http
 POST /api/users
-\`\`\`
+` + "`" + `` + "`" + `` + "`" + `
 
 **Request Body:**
 
-\`\`\`json
+` + "`" + `` + "`" + `` + "`" + `json
 {
   "name": "Jane Smith",
   "email": "jane@example.com",
   "password": "securepassword"
 }
-\`\`\`
+` + "`" + `` + "`" + `` + "`" + `
 
 **Response:**
 
-\`\`\`json
+` + "`" + `` + "`" + `` + "`" + `json
 {
   "id": 2,
   "name": "Jane Smith",
   "email": "jane@example.com",
   "created_at": "2024-01-15T10:00:00Z"
 }
-\`\`\`
+` + "`" + `` + "`" + `` + "`" + `
 `,
 			expectedRatio: 0.70,
 			description:   "API documentation with tables and code examples",
@@ -275,15 +275,15 @@ Breaking down the e-commerce API into 15 jobs.
 Job failed during database migration.
 
 ## Error:
-\`\`\`
+` + "`" + `` + "`" + `` + "`" + `
 Error: Connection refused to localhost:5432
-\`\`\`
+` + "`" + `` + "`" + `` + "`" + `
 
 ## Cause:
 PostgreSQL service not running
 
 ## Fix:
-Start PostgreSQL: \`docker-compose up -d postgres\`
+Start PostgreSQL: ` + "`" + `docker-compose up -d postgres` + "`" + `
 
 ## Retry:
 Job can be retried after fix
@@ -326,9 +326,9 @@ This is the API documentation.
 
 ## Endpoints
 
-- \`GET /users\` - List users
-- \`POST /users\` - Create user
-- \`GET /users/:id\` - Get user by ID
+- ` + "`" + `GET /users` + "`" + ` - List users
+- ` + "`" + `POST /users` + "`" + ` - Create user
+- ` + "`" + `GET /users/:id` + "`" + ` - Get user by ID
 `
 
 	b.ResetTimer()

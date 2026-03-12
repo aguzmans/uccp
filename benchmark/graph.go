@@ -6,18 +6,6 @@ import (
 	"strings"
 )
 
-// BenchmarkResult holds the outcome of a single benchmark run.
-type BenchmarkResult struct {
-	FileName           string
-	Category           string
-	OriginalTokens     int
-	CompressedTokens   int
-	NetTokens          int // compressed tokens + system prompt overhead
-	ByteCompressionPct float64
-	TokenCompressionPct float64
-	NetSavingsPct      float64
-}
-
 // GenerateGraph produces an SVG bar chart from benchmark results and writes it
 // to outputPath. The chart is a grouped horizontal bar chart comparing original,
 // compressed, and net token counts for each test file.
@@ -26,16 +14,16 @@ func GenerateGraph(results []BenchmarkResult, outputPath string) error {
 		return fmt.Errorf("no benchmark results to graph")
 	}
 
-	// ── Layout constants ──────────────────────────────────────────────
+	// Layout constants
 	const (
 		svgWidth     = 900
-		leftMargin   = 220 // space for labels
+		leftMargin   = 220
 		rightMargin  = 80
-		topMargin    = 90  // space for title + subtitle
-		bottomMargin = 130 // space for summary box
-		groupGap     = 20  // gap between groups
+		topMargin    = 90
+		bottomMargin = 130
+		groupGap     = 20
 		barHeight    = 22
-		barGap       = 4 // gap between bars within a group
+		barGap       = 4
 		barsPerGroup = 3
 	)
 
@@ -45,7 +33,7 @@ func GenerateGraph(results []BenchmarkResult, outputPath string) error {
 	chartHeight := len(results)*totalGroupHeight - groupGap
 	svgHeight := topMargin + chartHeight + bottomMargin
 
-	// ── Find the max token count for scaling ──────────────────────────
+	// Find the max token count for scaling
 	maxTokens := 0
 	for _, r := range results {
 		if r.OriginalTokens > maxTokens {
@@ -53,22 +41,22 @@ func GenerateGraph(results []BenchmarkResult, outputPath string) error {
 		}
 	}
 	if maxTokens == 0 {
-		maxTokens = 1 // avoid division by zero
+		maxTokens = 1
 	}
 
-	// ── Compute summary statistics ────────────────────────────────────
+	// Compute summary statistics
 	var sumBytePct, sumTokenPct, sumNetPct float64
 	for _, r := range results {
-		sumBytePct += r.ByteCompressionPct
-		sumTokenPct += r.TokenCompressionPct
-		sumNetPct += r.NetSavingsPct
+		sumBytePct += r.ByteRatio * 100
+		sumTokenPct += r.TokenRatio * 100
+		sumNetPct += r.NetTokenRatio * 100
 	}
 	n := float64(len(results))
 	avgBytePct := sumBytePct / n
 	avgTokenPct := sumTokenPct / n
 	avgNetPct := sumNetPct / n
 
-	// ── Colors ────────────────────────────────────────────────────────
+	// Colors
 	const (
 		colorOriginal   = "#94a3b8"
 		colorCompressed = "#3b82f6"
@@ -79,14 +67,11 @@ func GenerateGraph(results []BenchmarkResult, outputPath string) error {
 		colorSubtext    = "#64748b"
 	)
 
-	// ── Build SVG ─────────────────────────────────────────────────────
 	var b strings.Builder
 
-	// Header
+	// SVG header
 	b.WriteString(fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 %d %d">`, svgWidth, svgHeight, svgWidth, svgHeight))
 	b.WriteString("\n")
-
-	// Background
 	b.WriteString(fmt.Sprintf(`<rect width="%d" height="%d" fill="%s"/>`, svgWidth, svgHeight, colorBg))
 	b.WriteString("\n")
 
@@ -130,7 +115,7 @@ func GenerateGraph(results []BenchmarkResult, outputPath string) error {
 		b.WriteString("\n")
 	}
 
-	// ── Grid lines ────────────────────────────────────────────────────
+	// Grid lines
 	gridSteps := 5
 	for i := 0; i <= gridSteps; i++ {
 		x := leftMargin + int(float64(chartWidth)*float64(i)/float64(gridSteps))
@@ -138,35 +123,33 @@ func GenerateGraph(results []BenchmarkResult, outputPath string) error {
 		y2 := topMargin + chartHeight
 		b.WriteString(fmt.Sprintf(`<line x1="%d" y1="%d" x2="%d" y2="%d" stroke="%s" stroke-width="1"/>`, x, y1, x, y2, colorGrid))
 		b.WriteString("\n")
-
-		// Grid label
 		tokenVal := int(float64(maxTokens) * float64(i) / float64(gridSteps))
 		b.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="label-cat" text-anchor="middle">%s</text>`, x, y1-5, formatInt(tokenVal)))
 		b.WriteString("\n")
 	}
 
-	// ── Bars ──────────────────────────────────────────────────────────
+	// Bars
 	for i, r := range results {
 		groupY := topMargin + i*totalGroupHeight
+		labelY := groupY + groupHeight/2
 
 		// File name label
-		labelY := groupY + groupHeight/2
-		b.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="label" text-anchor="end" dominant-baseline="central">%s</text>`, leftMargin-10, labelY-7, escapeXML(r.FileName)))
+		b.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="label" text-anchor="end" dominant-baseline="central">%s</text>`, leftMargin-10, labelY-7, escapeXML(r.Name)))
 		b.WriteString("\n")
-
-		// Category label (below file name)
+		// Category label
 		b.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="label-cat" text-anchor="end" dominant-baseline="central">%s</text>`, leftMargin-10, labelY+8, escapeXML(r.Category)))
 		b.WriteString("\n")
 
-		// Bar data: value, color, pct label
+		netTokens := r.CompressedTokens + r.SystemPromptTokens
+
 		bars := []struct {
 			value int
 			color string
 			pct   string
 		}{
 			{r.OriginalTokens, colorOriginal, ""},
-			{r.CompressedTokens, colorCompressed, fmt.Sprintf("-%.0f%%", r.TokenCompressionPct)},
-			{r.NetTokens, colorNet, fmt.Sprintf("-%.0f%% net", r.NetSavingsPct)},
+			{r.CompressedTokens, colorCompressed, fmt.Sprintf("-%.0f%%", r.TokenRatio*100)},
+			{netTokens, colorNet, fmt.Sprintf("-%.0f%% net", r.NetTokenRatio*100)},
 		}
 
 		for j, bar := range bars {
@@ -176,12 +159,10 @@ func GenerateGraph(results []BenchmarkResult, outputPath string) error {
 				barW = 1
 			}
 
-			// Bar rectangle
 			b.WriteString(fmt.Sprintf(`<rect x="%d" y="%d" width="%d" height="%d" rx="3" fill="%s"/>`,
 				leftMargin, barY, barW, barHeight, bar.color))
 			b.WriteString("\n")
 
-			// Value label at end of bar
 			valLabel := formatInt(bar.value)
 			if bar.pct != "" {
 				valLabel = fmt.Sprintf("%s (%s)", valLabel, bar.pct)
@@ -193,23 +174,20 @@ func GenerateGraph(results []BenchmarkResult, outputPath string) error {
 		}
 	}
 
-	// ── Summary box ───────────────────────────────────────────────────
+	// Summary box
 	summaryY := topMargin + chartHeight + 25
 	boxX := leftMargin
 	boxW := chartWidth
 	boxH := 90
 
-	// Box background
 	b.WriteString(fmt.Sprintf(`<rect x="%d" y="%d" width="%d" height="%d" rx="6" fill="#f8fafc" stroke="%s" stroke-width="1"/>`,
 		boxX, summaryY, boxW, boxH, colorGrid))
 	b.WriteString("\n")
 
-	// Summary title
 	b.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="summary-title">Summary (averages across %d files)</text>`,
 		boxX+15, summaryY+22, len(results)))
 	b.WriteString("\n")
 
-	// Summary stats in columns
 	col1X := boxX + 15
 	col2X := boxX + boxW/3
 	col3X := boxX + 2*boxW/3
@@ -225,15 +203,12 @@ func GenerateGraph(results []BenchmarkResult, outputPath string) error {
 		col3X, statsY, avgNetPct))
 	b.WriteString("\n")
 
-	// Note
-	b.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="summary-note">Measured with tiktoken cl100k_base</text>`,
+	b.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="summary-note">Measured with tiktoken cl100k_base · net includes system prompt overhead per domain</text>`,
 		col1X, statsY+25))
 	b.WriteString("\n")
 
-	// Close SVG
 	b.WriteString("</svg>\n")
 
-	// Write to file
 	return os.WriteFile(outputPath, []byte(b.String()), 0644)
 }
 

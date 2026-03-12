@@ -369,62 +369,18 @@ context, _ := os.ReadFile(".context/snapshot.uccp")
 // ~5KB instead of ~50KB of source files
 ```
 
-## Performance
+## Benchmarks
 
-### Benchmark Suite
+Token savings measured with **tiktoken cl100k_base** on realistic generated test data (HTML pages, JSON API responses, source code). Net savings account for the UCCP system prompt overhead per domain.
 
-UCCP includes comprehensive benchmarks simulating real-world scenarios. See [benchmarks/README.md](benchmarks/README.md) for details.
+![UCCP Compression Benchmarks](docs/benchmark-results.svg)
 
-**Run benchmarks:**
+**Regenerate benchmarks locally:**
 ```bash
-# All benchmarks with detailed output
-go test ./benchmarks/... -v
-
-# Performance benchmarks
-go test ./benchmarks/ -bench=. -benchmem
+go run ./benchmark/cmd/
+# Generates test data in benchmark/testdata/ (gitignored)
+# Outputs SVG to docs/benchmark-results.svg
 ```
-
-**Benchmark categories:**
-- **Agent Communication** - Job summaries, architecture snapshots, batch processing
-- **HTML Compression** - Documentation, blogs, web scraping (10+ pages)
-- **JSON Compression** - API responses, user lists, product catalogs
-- **Markdown Compression** - READMEs, API docs, agent messages
-
-### Quick Results
-
-```
-=== Manager Reading 34 Job Summaries ===
-Without UCCP: 4,454 tokens ($0.0134)
-With UCCP:    1,224 tokens ($0.0037)
-Savings:      3,230 tokens (72.5% reduction, $0.0097 saved)
-
-=== Web Scraping 10 Documentation Pages ===
-Without UCCP: 125,000 tokens (16 pages in 200k context)
-With UCCP:    37,500 tokens (53 pages in 200k context)
-Savings:      87,500 tokens (70% reduction, 3.3x capacity)
-```
-
-### Performance Benchmarks
-
-```
-BenchmarkAgentCommunication-8     50000    25000 ns/op     5000 B/op    50 allocs/op
-BenchmarkHTMLCompression-8        20000    45000 ns/op    10000 B/op   100 allocs/op
-BenchmarkJSONCompression-8        40000    30000 ns/op     7000 B/op    70 allocs/op
-BenchmarkMarkdownCompression-8    45000    28000 ns/op     6000 B/op    60 allocs/op
-```
-
-**Interpretation:** 20,000-50,000 compressions/sec, fast enough for real-time use.
-
-### Real-World Metrics
-
-From simulated AI agent orchestration workflows (see benchmarks):
-
-| Metric | Without UCCP | With UCCP | Improvement |
-|--------|-------------|------------|-------------|
-| Manager tokens/session | 680k | 277k | **59% reduction** |
-| Worker tokens/job | 20k | 8k | **60% reduction** |
-| Daily token usage | 2.05M | 575k | **77% reduction** |
-| Monthly cost | $184 | $52 | **$132 saved** |
 
 ## Roadmap
 

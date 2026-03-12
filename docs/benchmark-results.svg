@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1046" viewBox="0 0 900 1046">
+<rect width="900" height="1046" fill="#ffffff"/>
+<style>
+    .title { font-family: Arial, Helvetica, sans-serif; font-size: 20px; font-weight: bold; fill: #1e293b; }
+    .subtitle { font-family: Arial, Helvetica, sans-serif; font-size: 13px; fill: #64748b; }
+    .label { font-family: Arial, Helvetica, sans-serif; font-size: 12px; fill: #1e293b; }
+    .label-cat { font-family: Arial, Helvetica, sans-serif; font-size: 10px; fill: #64748b; }
+    .value { font-family: Arial, Helvetica, sans-serif; font-size: 11px; fill: #1e293b; }
+    .legend-text { font-family: Arial, Helvetica, sans-serif; font-size: 11px; fill: #1e293b; }
+    .summary-title { font-family: Arial, Helvetica, sans-serif; font-size: 13px; font-weight: bold; fill: #1e293b; }
+    .summary-text { font-family: Arial, Helvetica, sans-serif; font-size: 12px; fill: #1e293b; }
+    .summary-note { font-family: Arial, Helvetica, sans-serif; font-size: 10px; fill: #64748b; font-style: italic; }
+  </style>
+<text x="220" y="35" class="title">UCCP Compression Benchmarks</text>
+<text x="220" y="55" class="subtitle">Token savings measured with cl100k_base tokenizer</text>
+<rect x="590" y="20" width="12" height="12" rx="2" fill="#94a3b8"/><text x="606" y="30" class="legend-text">Original tokens</text>
+<rect x="590" y="36" width="12" height="12" rx="2" fill="#3b82f6"/><text x="606" y="46" class="legend-text">Compressed tokens</text>
+<rect x="590" y="52" width="12" height="12" rx="2" fill="#22c55e"/><text x="606" y="62" class="legend-text">Net tokens (with prompt overhead)</text>
+<line x1="220" y1="90" x2="220" y2="916" stroke="#e2e8f0" stroke-width="1"/>
+<text x="220" y="85" class="label-cat" text-anchor="middle">0</text>
+<line x1="340" y1="90" x2="340" y2="916" stroke="#e2e8f0" stroke-width="1"/>
+<text x="340" y="85" class="label-cat" text-anchor="middle">15,770</text>
+<line x1="460" y1="90" x2="460" y2="916" stroke="#e2e8f0" stroke-width="1"/>
+<text x="460" y="85" class="label-cat" text-anchor="middle">31,540</text>
+<line x1="580" y1="90" x2="580" y2="916" stroke="#e2e8f0" stroke-width="1"/>
+<text x="580" y="85" class="label-cat" text-anchor="middle">47,311</text>
+<line x1="700" y1="90" x2="700" y2="916" stroke="#e2e8f0" stroke-width="1"/>
+<text x="700" y="85" class="label-cat" text-anchor="middle">63,081</text>
+<line x1="820" y1="90" x2="820" y2="916" stroke="#e2e8f0" stroke-width="1"/>
+<text x="820" y="85" class="label-cat" text-anchor="middle">78,852</text>
+<text x="210" y="120" class="label" text-anchor="end" dominant-baseline="central">Documentation Page</text>
+<text x="210" y="135" class="label-cat" text-anchor="end" dominant-baseline="central">HTML / Documentation</text>
+<rect x="220" y="90" width="83" height="22" rx="3" fill="#94a3b8"/>
+<text x="309" y="101" class="value" dominant-baseline="central">10,980</text>
+<rect x="220" y="116" width="85" height="22" rx="3" fill="#3b82f6"/>
+<text x="311" y="127" class="value" dominant-baseline="central">11,262 (-0%)</text>
+<rect x="220" y="142" width="87" height="22" rx="3" fill="#22c55e"/>
+<text x="313" y="153" class="value" dominant-baseline="central">11,459 (--4% net)</text>
+<text x="210" y="214" class="label" text-anchor="end" dominant-baseline="central">Blog Article</text>
+<text x="210" y="229" class="label-cat" text-anchor="end" dominant-baseline="central">HTML / Blog</text>
+<rect x="220" y="184" width="19" height="22" rx="3" fill="#94a3b8"/>
+<text x="245" y="195" class="value" dominant-baseline="central">2,576</text>
+<rect x="220" y="210" width="16" height="22" rx="3" fill="#3b82f6"/>
+<text x="242" y="221" class="value" dominant-baseline="central">2,219 (-14%)</text>
+<rect x="220" y="236" width="18" height="22" rx="3" fill="#22c55e"/>
+<text x="244" y="247" class="value" dominant-baseline="central">2,416 (-6% net)</text>
+<text x="210" y="308" class="label" text-anchor="end" dominant-baseline="central">E-commerce Listing</text>
+<text x="210" y="323" class="label-cat" text-anchor="end" dominant-baseline="central">HTML / E-commerce</text>
+<rect x="220" y="278" width="27" height="22" rx="3" fill="#94a3b8"/>
+<text x="253" y="289" class="value" dominant-baseline="central">3,593</text>
+<rect x="220" y="304" width="5" height="22" rx="3" fill="#3b82f6"/>
+<text x="231" y="315" class="value" dominant-baseline="central">682 (-81%)</text>
+<rect x="220" y="330" width="6" height="22" rx="3" fill="#22c55e"/>
+<text x="232" y="341" class="value" dominant-baseline="central">879 (-76% net)</text>
+<text x="210" y="402" class="label" text-anchor="end" dominant-baseline="central">Users API (500)</text>
+<text x="210" y="417" class="label-cat" text-anchor="end" dominant-baseline="central">JSON / API Response</text>
+<rect x="220" y="372" width="600" height="22" rx="3" fill="#94a3b8"/>
+<text x="826" y="383" class="value" dominant-baseline="central">78,852</text>
+<rect x="220" y="398" width="523" height="22" rx="3" fill="#3b82f6"/>
+<text x="749" y="409" class="value" dominant-baseline="central">68,852 (-13%)</text>
+<rect x="220" y="424" width="529" height="22" rx="3" fill="#22c55e"/>
+<text x="755" y="435" class="value" dominant-baseline="central">69,617 (-12% net)</text>
+<text x="210" y="496" class="label" text-anchor="end" dominant-baseline="central">Products API (200)</text>
+<text x="210" y="511" class="label-cat" text-anchor="end" dominant-baseline="central">JSON / API Response</text>
+<rect x="220" y="466" width="361" height="22" rx="3" fill="#94a3b8"/>
+<text x="587" y="477" class="value" dominant-baseline="central">47,469</text>
+<rect x="220" y="492" width="339" height="22" rx="3" fill="#3b82f6"/>
+<text x="565" y="503" class="value" dominant-baseline="central">44,669 (-6%)</text>
+<rect x="220" y="518" width="345" height="22" rx="3" fill="#22c55e"/>
+<text x="571" y="529" class="value" dominant-baseline="central">45,434 (-4% net)</text>
+<text x="210" y="590" class="label" text-anchor="end" dominant-baseline="central">App Config</text>
+<text x="210" y="605" class="label-cat" text-anchor="end" dominant-baseline="central">JSON / Config</text>
+<rect x="220" y="560" width="8" height="22" rx="3" fill="#94a3b8"/>
+<text x="234" y="571" class="value" dominant-baseline="central">1,120</text>
+<rect x="220" y="586" width="7" height="22" rx="3" fill="#3b82f6"/>
+<text x="233" y="597" class="value" dominant-baseline="central">962 (-14%)</text>
+<rect x="220" y="612" width="13" height="22" rx="3" fill="#22c55e"/>
+<text x="239" y="623" class="value" dominant-baseline="central">1,727 (--54% net)</text>
+<text x="210" y="684" class="label" text-anchor="end" dominant-baseline="central">React App</text>
+<text x="210" y="699" class="label-cat" text-anchor="end" dominant-baseline="central">Code / TypeScript</text>
+<rect x="220" y="654" width="24" height="22" rx="3" fill="#94a3b8"/>
+<text x="250" y="665" class="value" dominant-baseline="central">3,173</text>
+<rect x="220" y="680" width="22" height="22" rx="3" fill="#3b82f6"/>
+<text x="248" y="691" class="value" dominant-baseline="central">2,930 (-8%)</text>
+<rect x="220" y="706" width="28" height="22" rx="3" fill="#22c55e"/>
+<text x="254" y="717" class="value" dominant-baseline="central">3,695 (--16% net)</text>
+<text x="210" y="778" class="label" text-anchor="end" dominant-baseline="central">Go Service</text>
+<text x="210" y="793" class="label-cat" text-anchor="end" dominant-baseline="central">Code / Go</text>
+<rect x="220" y="748" width="21" height="22" rx="3" fill="#94a3b8"/>
+<text x="247" y="759" class="value" dominant-baseline="central">2,788</text>
+<rect x="220" y="774" width="19" height="22" rx="3" fill="#3b82f6"/>
+<text x="245" y="785" class="value" dominant-baseline="central">2,532 (-9%)</text>
+<rect x="220" y="800" width="25" height="22" rx="3" fill="#22c55e"/>
+<text x="251" y="811" class="value" dominant-baseline="central">3,297 (--18% net)</text>
+<text x="210" y="872" class="label" text-anchor="end" dominant-baseline="central">Python API</text>
+<text x="210" y="887" class="label-cat" text-anchor="end" dominant-baseline="central">Code / Python</text>
+<rect x="220" y="842" width="20" height="22" rx="3" fill="#94a3b8"/>
+<text x="246" y="853" class="value" dominant-baseline="central">2,690</text>
+<rect x="220" y="868" width="18" height="22" rx="3" fill="#3b82f6"/>
+<text x="244" y="879" class="value" dominant-baseline="central">2,434 (-10%)</text>
+<rect x="220" y="894" width="24" height="22" rx="3" fill="#22c55e"/>
+<text x="250" y="905" class="value" dominant-baseline="central">3,199 (--19% net)</text>
+<rect x="220" y="941" width="600" height="90" rx="6" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+<text x="235" y="963" class="summary-title">Summary (averages across 9 files)</text>
+<text x="235" y="986" class="summary-text">Byte compression: 20.8%</text>
+<text x="420" y="986" class="summary-text">Token compression: 17.1%</text>
+<text x="620" y="986" class="summary-text">Net token savings: -1.6%</text>
+<text x="235" y="1011" class="summary-note">Measured with tiktoken cl100k_base · net includes system prompt overhead per domain</text>
+</svg>

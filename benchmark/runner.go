@@ -44,29 +44,12 @@ type BenchmarkResult struct {
 	WasCompressed bool
 }
 
-// TestFile describes a test data file for benchmarking
+// TestFile describes a test data file for benchmarking.
 type TestFile struct {
 	Name     string // display name
 	Path     string // relative path under testDataDir
 	Domain   string // "html" or "code"
 	Category string // e.g. "documentation", "source", "config"
-}
-
-// TestDataFiles returns the list of test files to benchmark.
-// Files should be placed in the testdata directory.
-func TestDataFiles() []TestFile {
-	return []TestFile{
-		// HTML files
-		{Name: "Simple Article", Path: "simple_article.html", Domain: "html", Category: "documentation"},
-		{Name: "API Docs", Path: "api_docs.html", Domain: "html", Category: "documentation"},
-		{Name: "Blog Post", Path: "blog_post.html", Domain: "html", Category: "documentation"},
-
-		// Code files
-		{Name: "Go Source", Path: "sample.go", Domain: "code", Category: "source"},
-		{Name: "TSX Component", Path: "component.tsx", Domain: "code", Category: "source"},
-		{Name: "Python Script", Path: "script.py", Domain: "code", Category: "source"},
-		{Name: "JSON Config", Path: "config.json", Domain: "code", Category: "config"},
-	}
 }
 
 var (
@@ -105,17 +88,6 @@ func compressorForFile(path string) core.Compressor {
 	default:
 		// Default to code compressor for unknown extensions
 		return domains.NewCodeCompressor()
-	}
-}
-
-// domainForFile returns the domain name string for a file extension.
-func domainForFile(path string) string {
-	ext := strings.ToLower(filepath.Ext(path))
-	switch ext {
-	case ".html":
-		return "html"
-	default:
-		return "code"
 	}
 }
 

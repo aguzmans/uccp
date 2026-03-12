@@ -208,7 +208,7 @@ func TestJSONArrayCompression(t *testing.T) {
 	t.Logf("Compression ratio: %.1f%%", ratio*100)
 	t.Logf("Token savings: %d tokens", tokenSavings)
 	t.Logf("\nNote: Dedicated JSON domain (v0.0.8) will detect repeated structure")
-	t.Logf("      and achieve 80%+ compression on array data")
+	t.Logf("      and achieve 80%%+ compression on array data")
 }
 
 // BenchmarkJSONCompression benchmarks JSON compression performance
