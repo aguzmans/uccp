@@ -1,6 +1,6 @@
 module github.com/aguzmans/uccp
 
-go 1.26
+go 1.21
 
 // UCCP - Ultra-Compact Content Protocol
 // LLM-readable compression for agent-to-agent communication

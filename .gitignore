@@ -44,3 +44,7 @@ coverage.html
 # Example output files (from running examples)
 /examples/**/*.uccp
 /examples/**/*.txt
+
+.devspace/*
+devspace.yaml
+
