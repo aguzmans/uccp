@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 
@@ -137,7 +138,6 @@ func projectSnapshotExample() {
 	fmt.Printf("Compressed snapshot:\n%s\n\n", compressed)
 
 	// Calculate savings
-	import "encoding/json"
 	original, _ := json.Marshal(snapshot)
 	ratio := core.CalculateCompressionRatio(string(original), compressed)
 
@@ -168,7 +168,6 @@ func jobResultExample() {
 	fmt.Printf("Compressed job result:\n%s\n\n", compressed)
 
 	// Calculate savings
-	import "encoding/json"
 	original, _ := json.Marshal(result)
 	ratio := core.CalculateCompressionRatio(string(original), compressed)
 

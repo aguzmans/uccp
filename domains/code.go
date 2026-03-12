@@ -1,7 +1,6 @@
 package domains
 
 import (
-	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
@@ -14,7 +13,7 @@ import (
 type CodeCompressor struct{}
 
 // NewCodeCompressor creates a new code domain compressor
-func NewCodeCompressor() core.Compressor {
+func NewCodeCompressor() *CodeCompressor {
 	return &CodeCompressor{}
 }
 

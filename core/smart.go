@@ -39,7 +39,6 @@ var ConservativeThresholds = CompressionThresholds{
 // Returns the compression result with metadata
 func ShouldCompress(compressor Compressor, content string, thresholds CompressionThresholds) *CompressionResult {
 	originalSize := len(content)
-	originalTokens := EstimateTokenCount(content)
 
 	result := &CompressionResult{
 		Original:       content,

@@ -10,7 +10,7 @@ import (
 type HTMLCompressor struct{}
 
 // NewHTMLCompressor creates a new HTML domain compressor
-func NewHTMLCompressor() core.Compressor {
+func NewHTMLCompressor() *HTMLCompressor {
 	return &HTMLCompressor{}
 }
 
