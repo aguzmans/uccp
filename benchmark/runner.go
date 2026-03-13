@@ -38,9 +38,17 @@ type BenchmarkResult struct {
 	NetTokenSavings int
 	NetTokenRatio   float64 // net percentage saved
 
+	// Net savings with system prompt amortized over DefaultAmortizationDepth messages
+	AmortizedNetSavings int
+	AmortizedNetRatio   float64
+
 	// Performance
 	CompressTime time.Duration
 }
+
+// DefaultAmortizationDepth is the number of messages over which the system
+// prompt overhead is amortized when computing net savings.
+const DefaultAmortizationDepth = 10
 
 var (
 	tiktokenOnce sync.Once
@@ -125,28 +133,38 @@ func RunBenchmarks(testDataDir string) ([]BenchmarkResult, error) {
 		sysPrompt := compressor.SystemPrompt()
 		sysPromptTokens := countTokens(sysPrompt)
 
-		// Net savings
+		// Net savings (full system prompt overhead)
 		netSavings := origTokens - compTokens - sysPromptTokens
 		var netRatio float64
 		if origTokens > 0 {
 			netRatio = float64(netSavings) / float64(origTokens)
 		}
 
+		// Amortized net savings (system prompt cost spread over N messages)
+		amortizedOverhead := sysPromptTokens / DefaultAmortizationDepth
+		amortizedNetSavings := origTokens - compTokens - amortizedOverhead
+		var amortizedNetRatio float64
+		if origTokens > 0 {
+			amortizedNetRatio = float64(amortizedNetSavings) / float64(origTokens)
+		}
+
 		results = append(results, BenchmarkResult{
-			Name:               st.Name,
-			Domain:             st.Domain,
-			Category:           st.Category,
-			Pages:              st.Pages,
-			OriginalBytes:      origBytes,
-			CompressedBytes:    compBytes,
-			ByteRatio:          byteRatio,
-			OriginalTokens:     origTokens,
-			CompressedTokens:   compTokens,
-			TokenRatio:         tokenRatio,
-			SystemPromptTokens: sysPromptTokens,
-			NetTokenSavings:    netSavings,
-			NetTokenRatio:      netRatio,
-			CompressTime:       elapsed,
+			Name:                st.Name,
+			Domain:              st.Domain,
+			Category:            st.Category,
+			Pages:               st.Pages,
+			OriginalBytes:       origBytes,
+			CompressedBytes:     compBytes,
+			ByteRatio:           byteRatio,
+			OriginalTokens:      origTokens,
+			CompressedTokens:    compTokens,
+			TokenRatio:          tokenRatio,
+			SystemPromptTokens:  sysPromptTokens,
+			NetTokenSavings:     netSavings,
+			NetTokenRatio:       netRatio,
+			AmortizedNetSavings: amortizedNetSavings,
+			AmortizedNetRatio:   amortizedNetRatio,
+			CompressTime:        elapsed,
 		})
 	}
 

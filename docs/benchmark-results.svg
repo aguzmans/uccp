@@ -1,75 +1,118 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="900" height="540" viewBox="0 0 900 540">
-<rect width="900" height="540" fill="#ffffff"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="880" viewBox="0 0 900 880">
+<rect width="900" height="880" fill="#ffffff"/>
 <style>
     .title { font-family: Arial, Helvetica, sans-serif; font-size: 18px; font-weight: bold; fill: #1e293b; }
-    .subtitle { font-family: Arial, Helvetica, sans-serif; font-size: 12px; fill: #64748b; }
+    .chart-title { font-family: Arial, Helvetica, sans-serif; font-size: 14px; font-weight: bold; fill: #1e293b; }
+    .subtitle { font-family: Arial, Helvetica, sans-serif; font-size: 11px; fill: #64748b; }
     .axis-label { font-family: Arial, Helvetica, sans-serif; font-size: 11px; fill: #64748b; }
     .axis-title { font-family: Arial, Helvetica, sans-serif; font-size: 12px; fill: #1e293b; font-weight: bold; }
     .legend-text { font-family: Arial, Helvetica, sans-serif; font-size: 11px; fill: #1e293b; }
     .note { font-family: Arial, Helvetica, sans-serif; font-size: 10px; fill: #64748b; font-style: italic; }
     .data-label { font-family: Arial, Helvetica, sans-serif; font-size: 10px; font-weight: bold; }
+    .summary-title { font-family: Arial, Helvetica, sans-serif; font-size: 12px; font-weight: bold; fill: #1e293b; }
+    .summary-text { font-family: Arial, Helvetica, sans-serif; font-size: 11px; fill: #1e293b; }
   </style>
-<text x="80" y="30" class="title">UCCP Compression: Token Savings at Scale</text>
-<text x="80" y="48" class="subtitle">Net token savings (%) vs content size — measured with tiktoken cl100k_base (includes system prompt overhead)</text>
+<text x="80" y="25" class="title">UCCP Compression: Token Savings Benchmark</text>
+<text x="80" y="42" class="subtitle">Measured with tiktoken cl100k_base on realistic generated test data</text>
 <line x1="730" y1="18" x2="750" y2="18" stroke="#3b82f6" stroke-width="3"/><circle cx="740" cy="18" r="3" fill="#3b82f6"/><text x="756" y="18" class="legend-text" dominant-baseline="central">HTML Pages</text>
 <line x1="730" y1="36" x2="750" y2="36" stroke="#f59e0b" stroke-width="3"/><circle cx="740" cy="36" r="3" fill="#f59e0b"/><text x="756" y="36" class="legend-text" dominant-baseline="central">JSON Responses</text>
 <line x1="730" y1="54" x2="750" y2="54" stroke="#22c55e" stroke-width="3"/><circle cx="740" cy="54" r="3" fill="#22c55e"/><text x="756" y="54" class="legend-text" dominant-baseline="central">Source Code</text>
-<line x1="80" y1="420" x2="870" y2="420" stroke="#e2e8f0" stroke-width="1"/>
-<text x="72" y="420" class="axis-label" text-anchor="end" dominant-baseline="central">-40%</text>
-<line x1="80" y1="363" x2="870" y2="363" stroke="#e2e8f0" stroke-width="1"/>
-<text x="72" y="363" class="axis-label" text-anchor="end" dominant-baseline="central">-30%</text>
-<line x1="80" y1="306" x2="870" y2="306" stroke="#e2e8f0" stroke-width="1"/>
-<text x="72" y="306" class="axis-label" text-anchor="end" dominant-baseline="central">-20%</text>
-<line x1="80" y1="250" x2="870" y2="250" stroke="#e2e8f0" stroke-width="1"/>
-<text x="72" y="250" class="axis-label" text-anchor="end" dominant-baseline="central">-10%</text>
-<line x1="80" y1="193" x2="870" y2="193" stroke="#cbd5e1" stroke-width="2"/>
-<text x="72" y="193" class="axis-label" text-anchor="end" dominant-baseline="central">0%</text>
-<line x1="80" y1="136" x2="870" y2="136" stroke="#e2e8f0" stroke-width="1"/>
-<text x="72" y="136" class="axis-label" text-anchor="end" dominant-baseline="central">10%</text>
-<line x1="80" y1="80" x2="870" y2="80" stroke="#e2e8f0" stroke-width="1"/>
-<text x="72" y="80" class="axis-label" text-anchor="end" dominant-baseline="central">20%</text>
-<line x1="115" y1="80" x2="115" y2="420" stroke="#e2e8f0" stroke-width="1"/>
-<text x="115" y="438" class="axis-label" text-anchor="middle">1</text>
-<line x1="259" y1="80" x2="259" y2="420" stroke="#e2e8f0" stroke-width="1"/>
-<text x="259" y="438" class="axis-label" text-anchor="middle">5</text>
-<line x1="439" y1="80" x2="439" y2="420" stroke="#e2e8f0" stroke-width="1"/>
-<text x="439" y="438" class="axis-label" text-anchor="middle">10</text>
-<line x1="618" y1="80" x2="618" y2="420" stroke="#e2e8f0" stroke-width="1"/>
-<text x="618" y="438" class="axis-label" text-anchor="middle">15</text>
-<line x1="798" y1="80" x2="798" y2="420" stroke="#e2e8f0" stroke-width="1"/>
-<text x="798" y="438" class="axis-label" text-anchor="middle">20</text>
-<text x="475" y="458" class="axis-title" text-anchor="middle">Number of pages / files</text>
-<text x="20" y="250" class="axis-title" text-anchor="middle" transform="rotate(-90 20 250)">Net token savings (%)</text>
-<line x1="80" y1="80" x2="80" y2="420" stroke="#64748b" stroke-width="2"/>
-<line x1="80" y1="420" x2="870" y2="420" stroke="#64748b" stroke-width="2"/>
-<polyline points="115,190 259,173 439,171 618,171 798,170" fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-linejoin="round"/>
-<circle cx="115" cy="190" r="4" fill="#3b82f6" stroke="white" stroke-width="1.5"/>
-<text x="115" y="180" class="data-label" fill="#3b82f6" text-anchor="start">+0.5%</text>
-<circle cx="259" cy="173" r="4" fill="#3b82f6" stroke="white" stroke-width="1.5"/>
-<circle cx="439" cy="171" r="4" fill="#3b82f6" stroke="white" stroke-width="1.5"/>
-<circle cx="618" cy="171" r="4" fill="#3b82f6" stroke="white" stroke-width="1.5"/>
-<circle cx="798" cy="170" r="4" fill="#3b82f6" stroke="white" stroke-width="1.5"/>
-<text x="798" y="160" class="data-label" fill="#3b82f6" text-anchor="end">+4.0%</text>
-<polyline points="115,143 259,134 439,133 618,133 798,133" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-linejoin="round"/>
-<circle cx="115" cy="143" r="4" fill="#f59e0b" stroke="white" stroke-width="1.5"/>
-<text x="115" y="133" class="data-label" fill="#f59e0b" text-anchor="start">+8.8%</text>
-<circle cx="259" cy="134" r="4" fill="#f59e0b" stroke="white" stroke-width="1.5"/>
-<circle cx="439" cy="133" r="4" fill="#f59e0b" stroke="white" stroke-width="1.5"/>
-<circle cx="618" cy="133" r="4" fill="#f59e0b" stroke="white" stroke-width="1.5"/>
-<circle cx="798" cy="133" r="4" fill="#f59e0b" stroke="white" stroke-width="1.5"/>
-<text x="798" y="123" class="data-label" fill="#f59e0b" text-anchor="end">+10.6%</text>
-<polyline points="115,380 259,199 439,177 618,170 798,167" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linejoin="round"/>
-<circle cx="115" cy="380" r="4" fill="#22c55e" stroke="white" stroke-width="1.5"/>
-<text x="115" y="370" class="data-label" fill="#22c55e" text-anchor="start">-33.0%</text>
-<circle cx="259" cy="199" r="4" fill="#22c55e" stroke="white" stroke-width="1.5"/>
-<circle cx="439" cy="177" r="4" fill="#22c55e" stroke="white" stroke-width="1.5"/>
-<circle cx="618" cy="170" r="4" fill="#22c55e" stroke="white" stroke-width="1.5"/>
-<circle cx="798" cy="167" r="4" fill="#22c55e" stroke="white" stroke-width="1.5"/>
-<text x="798" y="157" class="data-label" fill="#22c55e" text-anchor="end">+4.5%</text>
-<rect x="80" y="475" width="790" height="70" rx="6" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
-<text x="92" y="493" class="axis-title">At 20 pages/files:</text>
-<text x="92" y="511" class="axis-label" fill="#3b82f6">HTML Pages: +4.0% net (4,390 tokens)</text>
-<text x="355" y="511" class="axis-label" fill="#f59e0b">JSON Responses: +10.6% net (83,735 tokens)</text>
-<text x="618" y="511" class="axis-label" fill="#22c55e">Source Code: +4.5% net (1,946 tokens)</text>
-<text x="92" y="531" class="note">Token counts measured with tiktoken cl100k_base · net savings include one-time system prompt overhead per domain</text>
+<text x="80" y="62" class="chart-title">Raw Token Compression %</text>
+<line x1="80" y1="370" x2="870" y2="370" stroke="#cbd5e1" stroke-width="2"/>
+<text x="72" y="370" class="axis-label" text-anchor="end" dominant-baseline="central">0%</text>
+<line x1="80" y1="220" x2="870" y2="220" stroke="#e2e8f0" stroke-width="1"/>
+<text x="72" y="220" class="axis-label" text-anchor="end" dominant-baseline="central">10%</text>
+<line x1="80" y1="70" x2="870" y2="70" stroke="#e2e8f0" stroke-width="1"/>
+<text x="72" y="70" class="axis-label" text-anchor="end" dominant-baseline="central">20%</text>
+<line x1="115" y1="70" x2="115" y2="370" stroke="#e2e8f0" stroke-width="1"/>
+<text x="115" y="388" class="axis-label" text-anchor="middle">1</text>
+<line x1="259" y1="70" x2="259" y2="370" stroke="#e2e8f0" stroke-width="1"/>
+<text x="259" y="388" class="axis-label" text-anchor="middle">5</text>
+<line x1="439" y1="70" x2="439" y2="370" stroke="#e2e8f0" stroke-width="1"/>
+<text x="439" y="388" class="axis-label" text-anchor="middle">10</text>
+<line x1="618" y1="70" x2="618" y2="370" stroke="#e2e8f0" stroke-width="1"/>
+<text x="618" y="388" class="axis-label" text-anchor="middle">15</text>
+<line x1="798" y1="70" x2="798" y2="370" stroke="#e2e8f0" stroke-width="1"/>
+<text x="798" y="388" class="axis-label" text-anchor="middle">20</text>
+<text x="475" y="408" class="axis-title" text-anchor="middle">Number of pages / files</text>
+<text x="20" y="220" class="axis-title" text-anchor="middle" transform="rotate(-90 20 220)">Token savings (%)</text>
+<line x1="80" y1="70" x2="80" y2="370" stroke="#64748b" stroke-width="2"/>
+<line x1="80" y1="370" x2="870" y2="370" stroke="#64748b" stroke-width="2"/>
+<polyline points="115,308 259,307 439,307 618,307 798,307" fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="115" cy="308" r="4" fill="#3b82f6" stroke="white" stroke-width="1.5"/>
+<text x="115" y="298" class="data-label" fill="#3b82f6" text-anchor="start">+4.1%</text>
+<circle cx="259" cy="307" r="4" fill="#3b82f6" stroke="white" stroke-width="1.5"/>
+<circle cx="439" cy="307" r="4" fill="#3b82f6" stroke="white" stroke-width="1.5"/>
+<circle cx="618" cy="307" r="4" fill="#3b82f6" stroke="white" stroke-width="1.5"/>
+<circle cx="798" cy="307" r="4" fill="#3b82f6" stroke="white" stroke-width="1.5"/>
+<text x="798" y="297" class="data-label" fill="#3b82f6" text-anchor="end">+4.2%</text>
+<polyline points="115,209 259,209 439,209 618,209 798,210" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="115" cy="209" r="4" fill="#f59e0b" stroke="white" stroke-width="1.5"/>
+<text x="115" y="199" class="data-label" fill="#f59e0b" text-anchor="start">+10.7%</text>
+<circle cx="259" cy="209" r="4" fill="#f59e0b" stroke="white" stroke-width="1.5"/>
+<circle cx="439" cy="209" r="4" fill="#f59e0b" stroke="white" stroke-width="1.5"/>
+<circle cx="618" cy="209" r="4" fill="#f59e0b" stroke="white" stroke-width="1.5"/>
+<circle cx="798" cy="210" r="4" fill="#f59e0b" stroke="white" stroke-width="1.5"/>
+<text x="798" y="200" class="data-label" fill="#f59e0b" text-anchor="end">+10.7%</text>
+<polyline points="115,275 259,280 439,274 618,274 798,275" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="115" cy="275" r="4" fill="#22c55e" stroke="white" stroke-width="1.5"/>
+<text x="115" y="265" class="data-label" fill="#22c55e" text-anchor="start">+6.3%</text>
+<circle cx="259" cy="280" r="4" fill="#22c55e" stroke="white" stroke-width="1.5"/>
+<circle cx="439" cy="274" r="4" fill="#22c55e" stroke="white" stroke-width="1.5"/>
+<circle cx="618" cy="274" r="4" fill="#22c55e" stroke="white" stroke-width="1.5"/>
+<circle cx="798" cy="275" r="4" fill="#22c55e" stroke="white" stroke-width="1.5"/>
+<text x="798" y="265" class="data-label" fill="#22c55e" text-anchor="end">+6.3%</text>
+<text x="80" y="462" class="chart-title">Net Token Savings (system prompt amortized over 10 messages)</text>
+<line x1="80" y1="770" x2="870" y2="770" stroke="#e2e8f0" stroke-width="1"/>
+<text x="72" y="770" class="axis-label" text-anchor="end" dominant-baseline="central">-10%</text>
+<line x1="80" y1="670" x2="870" y2="670" stroke="#cbd5e1" stroke-width="2"/>
+<text x="72" y="670" class="axis-label" text-anchor="end" dominant-baseline="central">0%</text>
+<line x1="80" y1="570" x2="870" y2="570" stroke="#e2e8f0" stroke-width="1"/>
+<text x="72" y="570" class="axis-label" text-anchor="end" dominant-baseline="central">10%</text>
+<line x1="80" y1="470" x2="870" y2="470" stroke="#e2e8f0" stroke-width="1"/>
+<text x="72" y="470" class="axis-label" text-anchor="end" dominant-baseline="central">20%</text>
+<line x1="115" y1="470" x2="115" y2="770" stroke="#e2e8f0" stroke-width="1"/>
+<text x="115" y="788" class="axis-label" text-anchor="middle">1</text>
+<line x1="259" y1="470" x2="259" y2="770" stroke="#e2e8f0" stroke-width="1"/>
+<text x="259" y="788" class="axis-label" text-anchor="middle">5</text>
+<line x1="439" y1="470" x2="439" y2="770" stroke="#e2e8f0" stroke-width="1"/>
+<text x="439" y="788" class="axis-label" text-anchor="middle">10</text>
+<line x1="618" y1="470" x2="618" y2="770" stroke="#e2e8f0" stroke-width="1"/>
+<text x="618" y="788" class="axis-label" text-anchor="middle">15</text>
+<line x1="798" y1="470" x2="798" y2="770" stroke="#e2e8f0" stroke-width="1"/>
+<text x="798" y="788" class="axis-label" text-anchor="middle">20</text>
+<text x="475" y="808" class="axis-title" text-anchor="middle">Number of pages / files</text>
+<text x="20" y="620" class="axis-title" text-anchor="middle" transform="rotate(-90 20 620)">Net token savings (%)</text>
+<line x1="80" y1="470" x2="80" y2="770" stroke="#64748b" stroke-width="2"/>
+<line x1="80" y1="770" x2="870" y2="770" stroke="#64748b" stroke-width="2"/>
+<polyline points="115,632 259,629 439,628 618,628 798,628" fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="115" cy="632" r="4" fill="#3b82f6" stroke="white" stroke-width="1.5"/>
+<text x="115" y="622" class="data-label" fill="#3b82f6" text-anchor="start">+3.8%</text>
+<circle cx="259" cy="629" r="4" fill="#3b82f6" stroke="white" stroke-width="1.5"/>
+<circle cx="439" cy="628" r="4" fill="#3b82f6" stroke="white" stroke-width="1.5"/>
+<circle cx="618" cy="628" r="4" fill="#3b82f6" stroke="white" stroke-width="1.5"/>
+<circle cx="798" cy="628" r="4" fill="#3b82f6" stroke="white" stroke-width="1.5"/>
+<text x="798" y="618" class="data-label" fill="#3b82f6" text-anchor="end">+4.2%</text>
+<polyline points="115,564 259,563 439,563 618,563 798,563" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="115" cy="564" r="4" fill="#f59e0b" stroke="white" stroke-width="1.5"/>
+<text x="115" y="554" class="data-label" fill="#f59e0b" text-anchor="start">+10.5%</text>
+<circle cx="259" cy="563" r="4" fill="#f59e0b" stroke="white" stroke-width="1.5"/>
+<circle cx="439" cy="563" r="4" fill="#f59e0b" stroke="white" stroke-width="1.5"/>
+<circle cx="618" cy="563" r="4" fill="#f59e0b" stroke="white" stroke-width="1.5"/>
+<circle cx="798" cy="563" r="4" fill="#f59e0b" stroke="white" stroke-width="1.5"/>
+<text x="798" y="553" class="data-label" fill="#f59e0b" text-anchor="end">+10.6%</text>
+<polyline points="115,645 259,617 439,609 618,608 798,608" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="115" cy="645" r="4" fill="#22c55e" stroke="white" stroke-width="1.5"/>
+<text x="115" y="635" class="data-label" fill="#22c55e" text-anchor="start">+2.4%</text>
+<circle cx="259" cy="617" r="4" fill="#22c55e" stroke="white" stroke-width="1.5"/>
+<circle cx="439" cy="609" r="4" fill="#22c55e" stroke="white" stroke-width="1.5"/>
+<circle cx="618" cy="608" r="4" fill="#22c55e" stroke="white" stroke-width="1.5"/>
+<circle cx="798" cy="608" r="4" fill="#22c55e" stroke="white" stroke-width="1.5"/>
+<text x="798" y="598" class="data-label" fill="#22c55e" text-anchor="end">+6.1%</text>
+<rect x="80" y="810" width="790" height="75" rx="6" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+<text x="92" y="828" class="summary-title">At 20 pages/files:</text>
+<text x="92" y="846" class="summary-text" fill="#3b82f6">HTML Pages: 4% raw / +4% net (4,568 tok saved)</text>
+<text x="355" y="846" class="summary-text" fill="#f59e0b">JSON Responses: 11% raw / +11% net (84,424 tok saved)</text>
+<text x="618" y="846" class="summary-text" fill="#22c55e">Source Code: 6% raw / +6% net (2,628 tok saved)</text>
+<text x="92" y="868" class="note">Token counts: tiktoken cl100k_base · "Raw" = compression only · "Net" = after system prompt overhead amortized over 10 messages per conversation</text>
 </svg>

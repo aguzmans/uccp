@@ -167,7 +167,7 @@ The chart shows two views:
 
 **Last benchmarked: %s** — At 20 pages: HTML %.0f%% raw / %.0f%% net, JSON %.0f%% raw / %.0f%% net, Code %.0f%% raw / %.0f%% net
 
-Historical benchmark results are saved in [`docs/benchmark-history/`](docs/benchmark-history/).
+Historical benchmark results are saved in [` + "`" + `docs/benchmark-history/` + "`" + `](docs/benchmark-history/).
 
 **Regenerate benchmarks locally:**
 `+"`"+`bash

@@ -371,17 +371,28 @@ context, _ := os.ReadFile(".context/snapshot.uccp")
 
 ## Benchmarks
 
-Token savings measured with **tiktoken cl100k_base** on realistic generated test data (HTML pages, JSON API responses, source code). Net savings account for the UCCP system prompt overhead per domain.
+Token savings measured with **tiktoken cl100k_base** on realistic generated test data (HTML pages, JSON API responses, source code).
+
+The chart shows two views:
+- **Top panel**: Raw token compression % (compression alone, no overhead)
+- **Bottom panel**: Net token savings with system prompt amortized over 10 messages (realistic conversation usage)
 
 ![UCCP Compression Benchmarks](docs/benchmark-results.svg)
 
+**Last benchmarked: 2026-03-13** — At 20 pages: HTML 4% raw / 4% net, JSON 11% raw / 11% net, Code 6% raw / 6% net
+
+Historical benchmark results are saved in [`docs/benchmark-history/`](docs/benchmark-history/).
+
 **Regenerate benchmarks locally:**
-```bash
+`bash
 go run ./benchmark/cmd/
 # Generates test data in benchmark/testdata/ (gitignored)
 # Outputs SVG to docs/benchmark-results.svg
-```
+# Archives previous result to docs/benchmark-history/
+# Updates this README automatically
+`
 
+## 
 ## Roadmap
 
 UCCP is actively developed with planned support for:
