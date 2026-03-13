@@ -54,25 +54,60 @@ var jsonKeyAbbrevs = map[string]string{
 }
 
 // Compress minifies JSON. For arrays of objects it uses columnar format.
+// Handles multiple JSON documents concatenated with whitespace.
 func (j *JSONCompressor) Compress(content string) (string, error) {
 	content = strings.TrimSpace(content)
 
-	// Try to parse as JSON
+	// Try as a single JSON value first
 	var raw interface{}
-	if err := json.Unmarshal([]byte(content), &raw); err != nil {
-		// Not valid JSON — just strip whitespace and abbreviate
-		return j.fallbackCompress(content), nil
+	if err := json.Unmarshal([]byte(content), &raw); err == nil {
+		return j.compressValue(raw), nil
 	}
 
-	// Check if top-level is an array of objects → columnar compression
+	// Multiple JSON values concatenated — split and compress each
+	chunks := splitJSONDocuments(content)
+	if len(chunks) > 1 {
+		var results []string
+		for _, chunk := range chunks {
+			var v interface{}
+			if err := json.Unmarshal([]byte(chunk), &v); err == nil {
+				results = append(results, j.compressValue(v))
+			} else {
+				results = append(results, j.fallbackCompress(chunk))
+			}
+		}
+		return strings.Join(results, "\n"), nil
+	}
+
+	return j.fallbackCompress(content), nil
+}
+
+// compressValue compresses a parsed JSON value.
+func (j *JSONCompressor) compressValue(raw interface{}) string {
 	if arr, ok := raw.([]interface{}); ok && len(arr) >= 2 {
 		if result, ok := j.compressArray(arr); ok {
-			return result, nil
+			return result
 		}
 	}
+	return j.compactAndAbbreviate(mustMarshal(raw))
+}
 
-	// Single object or non-array: just compact + abbreviate keys
-	return j.compactAndAbbreviate(content), nil
+// splitJSONDocuments splits a string containing multiple concatenated
+// JSON documents (arrays or objects) into individual documents.
+func splitJSONDocuments(content string) []string {
+	var docs []string
+	dec := json.NewDecoder(strings.NewReader(content))
+	for dec.More() {
+		var raw json.RawMessage
+		if err := dec.Decode(&raw); err != nil {
+			break
+		}
+		docs = append(docs, string(raw))
+	}
+	if len(docs) == 0 {
+		return []string{content}
+	}
+	return docs
 }
 
 // compressArray converts an array of objects with shared keys into
