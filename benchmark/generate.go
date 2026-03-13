@@ -72,7 +72,7 @@ func ScaleBenchmarks() []ScaleTest {
 		tests = append(tests, ScaleTest{
 			Name:     fmt.Sprintf("JSON %d responses", n),
 			Path:     fmt.Sprintf("json_responses_%02d.txt", n),
-			Domain:   "code",
+			Domain:   "json",
 			Pages:    n,
 			Category: "JSON API Responses",
 		})

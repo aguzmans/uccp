@@ -17,11 +17,62 @@ func NewCodeCompressor() *CodeCompressor {
 	return &CodeCompressor{}
 }
 
-// Compress converts code/technical content to UCCP format
+// Compress converts code/technical content to UCCP format.
+// Pipeline: strip comments → collapse indentation → abbreviate terms.
 func (c *CodeCompressor) Compress(content string) (string, error) {
-	// Apply abbreviations
-	result := compress(content)
+	result := stripComments(content)
+	result = collapseIndentation(result)
+	result = compress(result)
 	return result, nil
+}
+
+// stripComments removes single-line (//, #) and block (/* */) comments.
+func stripComments(code string) string {
+	// Block comments first (may span lines)
+	code = blockCommentRe.ReplaceAllString(code, "")
+	// Full-line // comments
+	code = lineCommentRe.ReplaceAllString(code, "")
+	// Full-line # comments (Python, bash, etc.)
+	code = hashCommentRe.ReplaceAllString(code, "")
+	// Trailing inline comments (after code)
+	code = inlineCommentRe.ReplaceAllString(code, "")
+	return code
+}
+
+// collapseIndentation reduces indentation to single-space-per-level
+// and removes excessive blank lines.
+func collapseIndentation(code string) string {
+	lines := strings.Split(code, "\n")
+	var result []string
+	for _, line := range lines {
+		trimmed := strings.TrimRight(line, " \t\r")
+		if trimmed == "" {
+			// Keep at most one blank line (handled by blankLinesRe below)
+			result = append(result, "")
+			continue
+		}
+		// Count leading tabs/spaces and normalize to single space per level
+		leading := 0
+		for _, ch := range line {
+			if ch == '\t' {
+				leading++
+			} else if ch == ' ' {
+				leading++
+			} else {
+				break
+			}
+		}
+		// Use 1 space per 2-4 original spaces (rough indent level)
+		level := leading / 2
+		if level > 0 {
+			trimmed = strings.Repeat(" ", level) + strings.TrimSpace(trimmed)
+		}
+		result = append(result, trimmed)
+	}
+	code = strings.Join(result, "\n")
+	// Collapse 3+ blank lines to 1
+	code = blankLinesRe.ReplaceAllString(code, "\n\n")
+	return strings.TrimSpace(code)
 }
 
 // Decompress converts UCCP format back to readable content
@@ -465,9 +516,15 @@ var abbrevMap = map[string]string{
 
 // Pre-compiled regexes for compress and compressCode
 var (
-	codeArticleRe    = regexp.MustCompile(`\b(the|a|an)\s`)
-	codeWhitespaceRe = regexp.MustCompile(`\s+`)
-	codeStepsRe      = regexp.MustCompile(`(?m)^\s*\d+\.\s*(.+)$`)
+	codeArticleRe      = regexp.MustCompile(`\b(the|a|an)\s`)
+	codeWhitespaceRe   = regexp.MustCompile(`\s+`)
+	codeStepsRe        = regexp.MustCompile(`(?m)^\s*\d+\.\s*(.+)$`)
+	lineCommentRe      = regexp.MustCompile(`(?m)^(\s*)//[^\n]*$`)
+	inlineCommentRe    = regexp.MustCompile(`\s*//[^\n]*`)
+	blockCommentRe     = regexp.MustCompile(`(?s)/\*.*?\*/`)
+	hashCommentRe      = regexp.MustCompile(`(?m)^(\s*)#[^\n]*$`)
+	blankLinesRe       = regexp.MustCompile(`\n{3,}`)
+	leadingWhitespaceRe = regexp.MustCompile(`(?m)^([ \t]+)`)
 )
 
 // Symbol replacements

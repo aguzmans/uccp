@@ -75,13 +75,18 @@ func countTokens(text string) int {
 }
 
 // compressorForDomain returns the appropriate compressor based on domain string.
+// All compressors are wrapped with smart deduplication.
 func compressorForDomain(domain string) core.Compressor {
+	var inner core.Compressor
 	switch domain {
 	case "html":
-		return domains.NewHTMLCompressor()
+		inner = domains.NewHTMLCompressor()
+	case "json":
+		inner = domains.NewJSONCompressor()
 	default:
-		return domains.NewCodeCompressor()
+		inner = domains.NewCodeCompressor()
 	}
+	return core.NewDedupCompressor(inner, 40)
 }
 
 // RunBenchmarks iterates over all scale tests, reads each generated file,
