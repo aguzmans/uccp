@@ -384,15 +384,22 @@ The chart shows two views:
 Historical benchmark results are saved in [`docs/benchmark-history/`](docs/benchmark-history/).
 
 **Regenerate benchmarks locally:**
-`bash
+```bash
+# With Go installed:
 go run ./benchmark/cmd/
-# Generates test data in benchmark/testdata/ (gitignored)
-# Outputs SVG to docs/benchmark-results.svg
-# Archives previous result to docs/benchmark-history/
-# Updates this README automatically
-`
 
-## 
+# Or with Docker (no Go required):
+docker run --rm -v "$(pwd):/src" -w /src golang:1.21-alpine \
+  sh -c "apk add --no-cache git >/dev/null 2>&1 && go run ./benchmark/cmd/"
+
+# In containerized/CI environments (where volume mounts can't reach source):
+docker build -f Dockerfile.bench -t uccp-bench .
+docker run --name uccp-bench-run uccp-bench
+docker cp uccp-bench-run:/src/docs/benchmark-results.svg ./docs/benchmark-results.svg
+docker cp uccp-bench-run:/src/README.md ./README.md
+docker rm uccp-bench-run
+```
+
 ## Roadmap
 
 UCCP is actively developed with planned support for:

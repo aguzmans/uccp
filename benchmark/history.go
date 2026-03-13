@@ -120,19 +120,16 @@ func UpdateREADME(readmePath string, results []BenchmarkResult) error {
 	}
 	content := string(data)
 
-	// Find the ## Benchmarks section
-	re := regexp.MustCompile(`(?s)(## Benchmarks\n)(.*?)(\n## )`)
-	match := re.FindStringIndex(content)
-	if match == nil {
+	// Find the ## Benchmarks section (everything up to the next ## heading)
+	re := regexp.MustCompile(`(?s)(## Benchmarks\n.*?\n)(## \S)`)
+	loc := re.FindStringIndex(content)
+	if loc == nil {
 		return fmt.Errorf("could not find ## Benchmarks section in README")
 	}
-
-	// Build the replacement section
 	submatch := re.FindStringSubmatch(content)
-	if len(submatch) < 4 {
-		return fmt.Errorf("could not parse ## Benchmarks section")
-	}
-	nextHeading := submatch[3]
+	// loc[0]..loc[1] spans the full match; submatch[2] is the next heading start
+	// We want to replace everything except the next heading
+	match := []int{loc[0], loc[1] - len(submatch[2])}
 
 	// Get summary stats for the description
 	var htmlRaw, jsonRaw, codeRaw float64
@@ -170,15 +167,24 @@ The chart shows two views:
 Historical benchmark results are saved in [` + "`" + `docs/benchmark-history/` + "`" + `](docs/benchmark-history/).
 
 **Regenerate benchmarks locally:**
-`+"`"+`bash
+` + "```" + `bash
+# With Go installed:
 go run ./benchmark/cmd/
-# Generates test data in benchmark/testdata/ (gitignored)
-# Outputs SVG to docs/benchmark-results.svg
-# Archives previous result to docs/benchmark-history/
-# Updates this README automatically
-`+"`"+`
+
+# Or with Docker (no Go required):
+docker run --rm -v "$(pwd):/src" -w /src golang:1.21-alpine \
+  sh -c "apk add --no-cache git >/dev/null 2>&1 && go run ./benchmark/cmd/"
+
+# In containerized/CI environments (where volume mounts can't reach source):
+docker build -f Dockerfile.bench -t uccp-bench .
+docker run --name uccp-bench-run uccp-bench
+docker cp uccp-bench-run:/src/docs/benchmark-results.svg ./docs/benchmark-results.svg
+docker cp uccp-bench-run:/src/README.md ./README.md
+docker rm uccp-bench-run
+` + "```" + `
+
 `, ts, htmlRaw, htmlNet, jsonRaw, jsonNet, codeRaw, codeNet)
 
-	newContent := content[:match[0]] + newSection + nextHeading + content[match[0]+len(submatch[0])-len(nextHeading):]
+	newContent := content[:match[0]] + newSection + content[match[1]:]
 	return os.WriteFile(readmePath, []byte(newContent), 0644)
 }

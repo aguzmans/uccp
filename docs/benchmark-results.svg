@@ -54,11 +54,11 @@
 <circle cx="618" cy="209" r="4" fill="#f59e0b" stroke="white" stroke-width="1.5"/>
 <circle cx="798" cy="210" r="4" fill="#f59e0b" stroke="white" stroke-width="1.5"/>
 <text x="798" y="200" class="data-label" fill="#f59e0b" text-anchor="end">+10.7%</text>
-<polyline points="115,275 259,280 439,274 618,274 798,275" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linejoin="round"/>
+<polyline points="115,275 259,280 439,273 618,274 798,275" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linejoin="round"/>
 <circle cx="115" cy="275" r="4" fill="#22c55e" stroke="white" stroke-width="1.5"/>
 <text x="115" y="265" class="data-label" fill="#22c55e" text-anchor="start">+6.3%</text>
 <circle cx="259" cy="280" r="4" fill="#22c55e" stroke="white" stroke-width="1.5"/>
-<circle cx="439" cy="274" r="4" fill="#22c55e" stroke="white" stroke-width="1.5"/>
+<circle cx="439" cy="273" r="4" fill="#22c55e" stroke="white" stroke-width="1.5"/>
 <circle cx="618" cy="274" r="4" fill="#22c55e" stroke="white" stroke-width="1.5"/>
 <circle cx="798" cy="275" r="4" fill="#22c55e" stroke="white" stroke-width="1.5"/>
 <text x="798" y="265" class="data-label" fill="#22c55e" text-anchor="end">+6.3%</text>
