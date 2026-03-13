@@ -379,7 +379,7 @@ The chart shows two views:
 
 ![UCCP Compression Benchmarks](docs/benchmark-results.svg)
 
-**Last benchmarked: 2026-03-13** — At 20 pages: HTML 4% raw / 4% net, JSON 43% raw / 43% net, Code 7% raw / 7% net
+**Last benchmarked: 2026-03-13** — At 20 pages: HTML 78% raw / 78% net, JSON 43% raw / 43% net, Code 7% raw / 7% net
 
 Historical benchmark results are saved in [`docs/benchmark-history/`](docs/benchmark-history/).
 

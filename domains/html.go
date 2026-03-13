@@ -7,455 +7,303 @@ import (
 	"github.com/aguzmans/uccp/core"
 )
 
-// Pre-compiled regexes for HTML parsing and compression
+// Pre-compiled regexes for HTML-to-markdown conversion.
 var (
-	// removeNoiseBlocks: tag-specific regexes
+	// Noise blocks to remove entirely
 	htmlNoiseRe = map[string]*regexp.Regexp{
 		"script": regexp.MustCompile(`(?is)<script[^>]*>.*?</script>`),
 		"style":  regexp.MustCompile(`(?is)<style[^>]*>.*?</style>`),
 		"nav":    regexp.MustCompile(`(?is)<nav[^>]*>.*?</nav>`),
-		"header": regexp.MustCompile(`(?is)<header[^>]*>.*?</header>`),
 		"footer": regexp.MustCompile(`(?is)<footer[^>]*>.*?</footer>`),
+		"svg":    regexp.MustCompile(`(?is)<svg[^>]*>.*?</svg>`),
+		"noscript": regexp.MustCompile(`(?is)<noscript[^>]*>.*?</noscript>`),
 	}
 
-	// extractHeadings: tag-specific regexes
-	htmlHeadingRe = map[string]*regexp.Regexp{
-		"h1": regexp.MustCompile(`(?is)<h1[^>]*>(.*?)</h1>`),
-		"h2": regexp.MustCompile(`(?is)<h2[^>]*>(.*?)</h2>`),
-		"h3": regexp.MustCompile(`(?is)<h3[^>]*>(.*?)</h3>`),
-		"h4": regexp.MustCompile(`(?is)<h4[^>]*>(.*?)</h4>`),
-	}
+	// Structural replacements (order matters)
+	htmlCodeBlockLangRe = regexp.MustCompile(`(?is)<pre[^>]*>\s*<code[^>]*class="[^"]*language-([^"\s]+)[^"]*"[^>]*>(.*?)</code>\s*</pre>`)
+	htmlCodeBlockRe     = regexp.MustCompile(`(?is)<pre[^>]*>\s*<code[^>]*>(.*?)</code>\s*</pre>`)
+	htmlPreRe           = regexp.MustCompile(`(?is)<pre[^>]*>(.*?)</pre>`)
+	htmlInlineCodeRe    = regexp.MustCompile(`(?is)<code[^>]*>(.*?)</code>`)
 
-	// extractCodeBlocks
-	htmlCodeLangRe = regexp.MustCompile(`(?is)<pre[^>]*>\s*<code[^>]*class="[^"]*language-([^"\s]+)[^"]*"[^>]*>(.*?)</code>\s*</pre>`)
-	htmlCodeRe     = regexp.MustCompile(`(?is)<pre[^>]*>\s*<code[^>]*>(.*?)</code>\s*</pre>`)
+	htmlH1Re = regexp.MustCompile(`(?is)<h1[^>]*>(.*?)</h1>`)
+	htmlH2Re = regexp.MustCompile(`(?is)<h2[^>]*>(.*?)</h2>`)
+	htmlH3Re = regexp.MustCompile(`(?is)<h3[^>]*>(.*?)</h3>`)
+	htmlH4Re = regexp.MustCompile(`(?is)<h4[^>]*>(.*?)</h4>`)
+	htmlH5Re = regexp.MustCompile(`(?is)<h5[^>]*>(.*?)</h5>`)
+	htmlH6Re = regexp.MustCompile(`(?is)<h6[^>]*>(.*?)</h6>`)
 
-	// extractLists
-	htmlListRe = regexp.MustCompile(`(?is)<li[^>]*>(.*?)</li>`)
-
-	// extractTables
+	htmlLinkRe      = regexp.MustCompile(`(?is)<a[^>]*href="([^"]+)"[^>]*>(.*?)</a>`)
+	htmlImgRe       = regexp.MustCompile(`(?is)<img[^>]*alt="([^"]*)"[^>]*/?>`)
+	htmlListItemRe  = regexp.MustCompile(`(?is)<li[^>]*>(.*?)</li>`)
 	htmlTableRowRe  = regexp.MustCompile(`(?is)<tr[^>]*>(.*?)</tr>`)
 	htmlTableCellRe = regexp.MustCompile(`(?is)<t[hd][^>]*>(.*?)</t[hd]>`)
-
-	// extractParagraphs
 	htmlParagraphRe = regexp.MustCompile(`(?is)<p[^>]*>(.*?)</p>`)
+	htmlDivNoteRe   = regexp.MustCompile(`(?is)<div[^>]*class="[^"]*note[^"]*"[^>]*>(.*?)</div>`)
+	htmlStrongRe    = regexp.MustCompile(`(?is)<(?:strong|b)[^>]*>(.*?)</(?:strong|b)>`)
+	htmlEmRe        = regexp.MustCompile(`(?is)<(?:em|i)[^>]*>(.*?)</(?:em|i)>`)
+	htmlBrRe        = regexp.MustCompile(`(?is)<br\s*/?>`)
 
-	// extractLinks
-	htmlLinkRe = regexp.MustCompile(`(?is)<a[^>]*href="([^"]+)"[^>]*>(.*?)</a>`)
+	// Cleanup
+	htmlAllTagsRe       = regexp.MustCompile(`<[^>]+>`)
+	htmlMultiBlankRe    = regexp.MustCompile(`\n{3,}`)
+	htmlMultiSpaceRe    = regexp.MustCompile(`[ \t]+`)
+	htmlTrailingSpaceRe = regexp.MustCompile(`(?m)[ \t]+$`)
 
-	// htmlCompress
-	htmlArticleRe    = regexp.MustCompile(`\b(the|a|an)\s`)
-	htmlWhitespaceRe = regexp.MustCompile(`\s+`)
-
-	// htmlCompressCode
-	htmlBlankLineRe = regexp.MustCompile(`\n\s*\n`)
-
-	// cleanText
-	htmlTagsRe = regexp.MustCompile(`<[^>]*>`)
+	// Abbreviations
+	htmlAbbrevMap = map[string]string{
+		"Performance":    "Prf",
+		"performance":    "prf",
+		"Function":       "fn",
+		"function":       "fn",
+		"Implementation": "impl",
+		"implementation": "impl",
+		"Configuration":  "cfg",
+		"configuration":  "cfg",
+		"Parameter":      "param",
+		"parameter":      "param",
+		"Repository":     "repo",
+		"repository":     "repo",
+		"Application":    "app",
+		"application":    "app",
+		"Development":    "dev",
+		"development":    "dev",
+		"Production":     "prod",
+		"production":     "prod",
+		"Environment":    "env",
+		"environment":    "env",
+		"Authentication": "auth",
+		"authentication": "auth",
+		"Authorization":  "authz",
+		"authorization":  "authz",
+	}
+	htmlArticleRe = regexp.MustCompile(`\b(the|a|an)\s`)
 )
 
-// HTMLCompressor compresses HTML and web content into UCCP format.
-// Optimized for web scraping and content extraction use cases where
-// HTML pages need to be fed to LLMs with maximum token efficiency.
+// HTMLCompressor converts HTML to compact markdown-like format.
+// Preserves semantic structure (headings, lists, code, tables, links)
+// while stripping all tag overhead, attributes, styles, and noise.
 type HTMLCompressor struct{}
 
-// NewHTMLCompressor creates a new HTML domain compressor
 func NewHTMLCompressor() *HTMLCompressor {
 	return &HTMLCompressor{}
 }
 
-// Compress converts HTML content to UCCP pipe-delimited format.
-// Parses headings, paragraphs, code blocks, lists, tables, and links
-// into compact type:data records separated by |.
+// Compress converts HTML to compact markdown, preserving document order
+// and semantic tag types while eliminating all markup overhead.
 func (h *HTMLCompressor) Compress(content string) (string, error) {
-	nodes := parseHTML(content)
-
-	var records []string
-	for _, node := range nodes {
-		record := encodeNode(node)
-		if record != "" {
-			records = append(records, record)
-		}
-	}
-
-	return strings.Join(records, "|"), nil
+	md := htmlToMarkdown(content)
+	md = applyAbbreviations(md)
+	return md, nil
 }
 
-// Decompress converts UCCP format back to readable text.
-// Note: This is lossy — HTML structure, articles, and some formatting are not recovered.
 func (h *HTMLCompressor) Decompress(compressed string) (string, error) {
-	records := strings.Split(compressed, "|")
-	var lines []string
-
-	for _, record := range records {
-		parts := strings.SplitN(record, ":", 2)
-		if len(parts) != 2 {
-			continue
-		}
-		typeCode := parts[0]
-		data := parts[1]
-
-		switch typeCode {
-		case "1":
-			lines = append(lines, "# "+data)
-		case "2":
-			lines = append(lines, "## "+data)
-		case "3":
-			lines = append(lines, "### "+data)
-		case "t":
-			lines = append(lines, data)
-		case "l":
-			lines = append(lines, "- "+data)
-		case "d":
-			lines = append(lines, "| "+strings.ReplaceAll(data, ",", " | ")+" |")
-		case "u":
-			lines = append(lines, "[link]("+data+")")
-		default:
-			// Code blocks
-			lines = append(lines, "```\n"+data+"\n```")
-		}
-	}
-
-	return strings.Join(lines, "\n"), nil
+	// Already readable markdown — return as-is
+	return compressed, nil
 }
 
-// SystemPrompt returns the LLM prompt explaining UCCP HTML compression format
 func (h *HTMLCompressor) SystemPrompt() string {
-	return `
-ULTRA-COMPACT CONTENT PROTOCOL (UCCP) - HTML Domain:
-Format: type:data|type:data where | separates records
-Types: 1=H1 2=H2 3=H3 t=text c=C p=Python j=Java g=Go s=JS q=SQL r=Rust b=Bash l=list d=table m=metric x=comparison k=key-value u=URL
-Abbrev: Prf=Performance fn=function int=Integer PK=PrimaryKey qry=query db=database ms=millisecond bmk=benchmark impl=implementation cfg=config err=error rsp=response req=request auth=authentication app=application dev=development prod=production env=environment var=variable param=parameter repo=repository authz=authorization
-Symbols: >=faster <=slower ~=approx ↑=increase ↓=decrease v=versus &=and !=fails 1°=primary 2°=secondary ret=return
-`
+	return `Content compressed from HTML to compact markdown. Semantic structure preserved:
+# H1, ## H2, ### H3 = headings. - = list items. ` + "```" + `lang = code blocks.
+| col | col | = tables. [text](url) = links. **bold** *italic* = emphasis.
+Abbreviations: Prf=Performance fn=function impl=implementation cfg=configuration param=parameter repo=repository app=application dev=development prod=production env=environment auth=authentication authz=authorization. Articles (the/a/an) removed.`
 }
 
-// EstimateTokens estimates token count for HTML content
 func (h *HTMLCompressor) EstimateTokens(content string) int {
 	return core.EstimateTokenCount(content)
 }
 
-// --- HTML Node types and parser ---
-
-// htmlNode represents a parsed HTML element
-type htmlNode struct {
-	Type     string     // h1, h2, h3, p, pre, code, li, tr, a
-	Text     string     // Text content
-	Language string     // For code blocks (python, go, c, etc.)
-	Href     string     // For links
-	Children []htmlNode // For nested elements (like table cells)
-}
-
-// parseHTML converts an HTML string into structured nodes.
-// This is a lightweight regex-based parser optimized for article content.
-func parseHTML(html string) []htmlNode {
-	var nodes []htmlNode
-
-	html = removeNoiseBlocks(html)
-
-	nodes = append(nodes, extractHeadings(html, "h1")...)
-	nodes = append(nodes, extractHeadings(html, "h2")...)
-	nodes = append(nodes, extractHeadings(html, "h3")...)
-	nodes = append(nodes, extractHeadings(html, "h4")...)
-	nodes = append(nodes, extractCodeBlocks(html)...)
-	nodes = append(nodes, extractLists(html)...)
-	nodes = append(nodes, extractTables(html)...)
-	nodes = append(nodes, extractParagraphs(html)...)
-	nodes = append(nodes, extractLinks(html)...)
-
-	return nodes
-}
-
-func removeNoiseBlocks(html string) string {
-	for _, tag := range []string{"script", "style", "nav", "header", "footer"} {
+// htmlToMarkdown converts HTML to compact markdown in document order.
+func htmlToMarkdown(html string) string {
+	// 1. Remove noise blocks
+	for _, tag := range []string{"script", "style", "nav", "footer", "svg", "noscript"} {
 		html = htmlNoiseRe[tag].ReplaceAllString(html, "")
 	}
-	return html
+
+	// 2. Remove <head> entirely
+	headRe := regexp.MustCompile(`(?is)<head[^>]*>.*?</head>`)
+	html = headRe.ReplaceAllString(html, "")
+
+	// 3. Convert code blocks FIRST (before stripping other tags inside them)
+	html = htmlCodeBlockLangRe.ReplaceAllStringFunc(html, func(match string) string {
+		parts := htmlCodeBlockLangRe.FindStringSubmatch(match)
+		if len(parts) < 3 {
+			return match
+		}
+		lang := strings.ToLower(parts[1])
+		code := decodeHTMLEntities(strings.TrimSpace(parts[2]))
+		// Strip comments from code blocks
+		code = stripCodeComments(code)
+		return "\n```" + lang + "\n" + code + "\n```\n"
+	})
+	html = htmlCodeBlockRe.ReplaceAllStringFunc(html, func(match string) string {
+		parts := htmlCodeBlockRe.FindStringSubmatch(match)
+		if len(parts) < 2 {
+			return match
+		}
+		code := decodeHTMLEntities(strings.TrimSpace(parts[1]))
+		code = stripCodeComments(code)
+		return "\n```\n" + code + "\n```\n"
+	})
+	html = htmlPreRe.ReplaceAllStringFunc(html, func(match string) string {
+		parts := htmlPreRe.FindStringSubmatch(match)
+		if len(parts) < 2 {
+			return match
+		}
+		code := decodeHTMLEntities(strings.TrimSpace(parts[1]))
+		return "\n```\n" + code + "\n```\n"
+	})
+
+	// 4. Convert structural elements to markdown
+	html = htmlH1Re.ReplaceAllStringFunc(html, func(m string) string {
+		return "\n# " + cleanInline(htmlH1Re.FindStringSubmatch(m)[1]) + "\n"
+	})
+	html = htmlH2Re.ReplaceAllStringFunc(html, func(m string) string {
+		return "\n## " + cleanInline(htmlH2Re.FindStringSubmatch(m)[1]) + "\n"
+	})
+	html = htmlH3Re.ReplaceAllStringFunc(html, func(m string) string {
+		return "\n### " + cleanInline(htmlH3Re.FindStringSubmatch(m)[1]) + "\n"
+	})
+	html = htmlH4Re.ReplaceAllStringFunc(html, func(m string) string {
+		return "\n#### " + cleanInline(htmlH4Re.FindStringSubmatch(m)[1]) + "\n"
+	})
+	html = htmlH5Re.ReplaceAllStringFunc(html, func(m string) string {
+		return "\n##### " + cleanInline(htmlH5Re.FindStringSubmatch(m)[1]) + "\n"
+	})
+	html = htmlH6Re.ReplaceAllStringFunc(html, func(m string) string {
+		return "\n###### " + cleanInline(htmlH6Re.FindStringSubmatch(m)[1]) + "\n"
+	})
+
+	// Notes/callouts
+	html = htmlDivNoteRe.ReplaceAllStringFunc(html, func(m string) string {
+		parts := htmlDivNoteRe.FindStringSubmatch(m)
+		if len(parts) < 2 {
+			return m
+		}
+		return "\n> " + cleanInline(parts[1]) + "\n"
+	})
+
+	// Links → [text](url)
+	html = htmlLinkRe.ReplaceAllStringFunc(html, func(m string) string {
+		parts := htmlLinkRe.FindStringSubmatch(m)
+		if len(parts) < 3 {
+			return m
+		}
+		text := cleanInline(parts[2])
+		href := parts[1]
+		if text == "" {
+			return href
+		}
+		// Skip anchor-only links
+		if strings.HasPrefix(href, "#") {
+			return text
+		}
+		return "[" + text + "](" + href + ")"
+	})
+
+	// Images → alt text only
+	html = htmlImgRe.ReplaceAllString(html, "$1")
+
+	// Inline formatting
+	html = htmlStrongRe.ReplaceAllString(html, "**$1**")
+	html = htmlEmRe.ReplaceAllString(html, "*$1*")
+	html = htmlInlineCodeRe.ReplaceAllString(html, "`$1`")
+	html = htmlBrRe.ReplaceAllString(html, "\n")
+
+	// Tables → markdown tables
+	html = convertTables(html)
+
+	// List items → markdown
+	html = htmlListItemRe.ReplaceAllStringFunc(html, func(m string) string {
+		parts := htmlListItemRe.FindStringSubmatch(m)
+		if len(parts) < 2 {
+			return m
+		}
+		text := cleanInline(parts[1])
+		if text == "" {
+			return ""
+		}
+		return "\n- " + text
+	})
+
+	// Paragraphs → double newline separated text
+	html = htmlParagraphRe.ReplaceAllStringFunc(html, func(m string) string {
+		parts := htmlParagraphRe.FindStringSubmatch(m)
+		if len(parts) < 2 {
+			return m
+		}
+		text := cleanInline(parts[1])
+		if text == "" {
+			return ""
+		}
+		return "\n" + text + "\n"
+	})
+
+	// 5. Strip all remaining tags
+	html = htmlAllTagsRe.ReplaceAllString(html, "")
+
+	// 6. Decode remaining entities
+	html = decodeHTMLEntities(html)
+
+	// 7. Clean up whitespace
+	html = htmlMultiSpaceRe.ReplaceAllString(html, " ")
+	html = htmlTrailingSpaceRe.ReplaceAllString(html, "")
+	html = htmlMultiBlankRe.ReplaceAllString(html, "\n\n")
+
+	return strings.TrimSpace(html)
 }
 
-func extractHeadings(html, tag string) []htmlNode {
-	var nodes []htmlNode
-	re := htmlHeadingRe[tag]
-	for _, match := range re.FindAllStringSubmatch(html, -1) {
-		if len(match) > 1 {
-			text := cleanText(match[1])
-			if text != "" {
-				nodes = append(nodes, htmlNode{Type: tag, Text: text})
+// convertTables converts HTML tables to markdown tables.
+func convertTables(html string) string {
+	return htmlTableRowRe.ReplaceAllStringFunc(html, func(rowMatch string) string {
+		parts := htmlTableRowRe.FindStringSubmatch(rowMatch)
+		if len(parts) < 2 {
+			return rowMatch
+		}
+		cells := htmlTableCellRe.FindAllStringSubmatch(parts[1], -1)
+		if len(cells) == 0 {
+			return ""
+		}
+		var cellTexts []string
+		for _, cell := range cells {
+			if len(cell) > 1 {
+				cellTexts = append(cellTexts, cleanInline(cell[1]))
 			}
 		}
-	}
-	return nodes
+		return "\n| " + strings.Join(cellTexts, " | ") + " |"
+	})
 }
 
-func extractCodeBlocks(html string) []htmlNode {
-	var nodes []htmlNode
-
-	// <pre><code class="language-X">...</code></pre>
-	for _, match := range htmlCodeLangRe.FindAllStringSubmatch(html, -1) {
-		if len(match) > 2 {
-			nodes = append(nodes, htmlNode{
-				Type:     "code",
-				Text:     decodeHTMLEntities(match[2]),
-				Language: match[1],
-			})
-		}
-	}
-
-	// <pre><code>...</code></pre> (no language)
-	for _, match := range htmlCodeRe.FindAllStringSubmatch(html, -1) {
-		if len(match) > 1 {
-			code := decodeHTMLEntities(match[1])
-			alreadyFound := false
-			for _, existing := range nodes {
-				if existing.Type == "code" && existing.Text == code {
-					alreadyFound = true
-					break
-				}
-			}
-			if !alreadyFound {
-				nodes = append(nodes, htmlNode{Type: "code", Text: code})
-			}
-		}
-	}
-
-	return nodes
-}
-
-func extractLists(html string) []htmlNode {
-	var nodes []htmlNode
-	re := htmlListRe
-	for _, match := range re.FindAllStringSubmatch(html, -1) {
-		if len(match) > 1 {
-			text := cleanText(match[1])
-			if text != "" {
-				nodes = append(nodes, htmlNode{Type: "li", Text: text})
-			}
-		}
-	}
-	return nodes
-}
-
-func extractTables(html string) []htmlNode {
-	var nodes []htmlNode
-	reTr := htmlTableRowRe
-	reCell := htmlTableCellRe
-
-	for _, match := range reTr.FindAllStringSubmatch(html, -1) {
-		if len(match) > 1 {
-			var children []htmlNode
-			for _, cellMatch := range reCell.FindAllStringSubmatch(match[1], -1) {
-				if len(cellMatch) > 1 {
-					children = append(children, htmlNode{
-						Type: "td",
-						Text: cleanText(cellMatch[1]),
-					})
-				}
-			}
-			if len(children) > 0 {
-				nodes = append(nodes, htmlNode{Type: "tr", Children: children})
-			}
-		}
-	}
-	return nodes
-}
-
-func extractParagraphs(html string) []htmlNode {
-	var nodes []htmlNode
-	re := htmlParagraphRe
-	for _, match := range re.FindAllStringSubmatch(html, -1) {
-		if len(match) > 1 {
-			text := cleanText(match[1])
-			if text != "" && len(text) > 10 {
-				nodes = append(nodes, htmlNode{Type: "p", Text: text})
-			}
-		}
-	}
-	return nodes
-}
-
-func extractLinks(html string) []htmlNode {
-	var nodes []htmlNode
-	re := htmlLinkRe
-	for _, match := range re.FindAllStringSubmatch(html, -1) {
-		if len(match) > 2 {
-			href := match[1]
-			text := cleanText(match[2])
-			if href != "" && text != "" {
-				nodes = append(nodes, htmlNode{Type: "a", Href: href, Text: text})
-			}
-		}
-	}
-	return nodes
-}
-
-// --- Encoding ---
-
-func encodeNode(node htmlNode) string {
-	switch node.Type {
-	case "h1":
-		return "1:" + htmlCompress(node.Text)
-	case "h2":
-		return "2:" + htmlCompress(node.Text)
-	case "h3", "h4":
-		return "3:" + htmlCompress(node.Text)
-	case "p":
-		text := htmlCompress(node.Text)
-		if text != "" {
-			return "t:" + text
-		}
-	case "pre", "code":
-		lang := node.Language
-		if lang == "" {
-			lang = "c"
-		}
-		return htmlLangCode(lang) + ":" + htmlCompressCode(node.Text)
-	case "li":
-		return "l:" + htmlCompress(node.Text)
-	case "tr":
-		if len(node.Children) > 0 {
-			var cells []string
-			for _, cell := range node.Children {
-				cells = append(cells, htmlCompress(cell.Text))
-			}
-			return "d:" + strings.Join(cells, ",")
-		}
-	case "a":
-		if node.Href != "" && node.Text != "" {
-			return "u:" + node.Href
-		}
-	}
-	return ""
-}
-
-// --- HTML-domain compression ---
-
-// htmlAbbrevMap contains abbreviation replacements for HTML content compression.
-var htmlAbbrevMap = map[string]string{
-	"Performance":    "Prf",
-	"performance":    "prf",
-	"Function":       "fn",
-	"function":       "fn",
-	"Integer":        "int",
-	"PRIMARY KEY":    "PK",
-	"Query":          "qry",
-	"query":          "qry",
-	"Database":       "db",
-	"database":       "db",
-	"millisecond":    "ms",
-	"milliseconds":   "ms",
-	"Benchmark":      "bmk",
-	"Implementation": "impl",
-	"implementation": "impl",
-	"Configuration":  "cfg",
-	"configuration":  "cfg",
-	"Parameter":      "param",
-	"parameter":      "param",
-	"Repository":     "repo",
-	"repository":     "repo",
-	"Application":    "app",
-	"application":    "app",
-	"Development":    "dev",
-	"development":    "dev",
-	"Production":     "prod",
-	"production":     "prod",
-	"Environment":    "env",
-	"environment":    "env",
-	"Variable":       "var",
-	"variable":       "var",
-	"Authentication": "auth",
-	"authentication": "auth",
-	"Authorization":  "authz",
-	"authorization":  "authz",
-	"Response":       "rsp",
-	"response":       "rsp",
-	"Request":        "req",
-	"request":        "req",
-	"Error":          "err",
-	"error":          "err",
-}
-
-// htmlSymbolMap contains symbol replacements for HTML content compression.
-var htmlSymbolMap = map[string]string{
-	" faster than ":   ">",
-	" slower than ":   "<",
-	" equal to ":      "=",
-	" approximately ": "~",
-	" versus ":        "v",
-	" and ":           "&",
-	" fails to ":      "!",
-	" failed to ":     "!",
-	" Primary ":       "1° ",
-	" primary ":       "1° ",
-	" Secondary ":     "2° ",
-	" secondary ":     "2° ",
-	" increase ":      "↑ ",
-	" decrease ":      "↓ ",
-	" decreases ":     "↓ ",
-	" increases ":     "↑ ",
-}
-
-func htmlCompress(text string) string {
-	for old, repl := range htmlAbbrevMap {
-		text = strings.ReplaceAll(text, old, repl)
-	}
-	for old, repl := range htmlSymbolMap {
-		text = strings.ReplaceAll(text, old, repl)
-	}
-
-	// Remove articles
-	text = htmlArticleRe.ReplaceAllString(text, "")
-
-	// Clean up punctuation and whitespace
-	text = strings.ReplaceAll(text, "  ", " ")
-	text = strings.ReplaceAll(text, " .", ".")
-	text = strings.ReplaceAll(text, " ,", ",")
-	text = htmlWhitespaceRe.ReplaceAllString(text, " ")
-
-	return strings.TrimSpace(text)
-}
-
-func htmlCompressCode(code string) string {
-	code = htmlBlankLineRe.ReplaceAllString(code, "\n")
-	code = strings.TrimSpace(code)
-	code = strings.ReplaceAll(code, "return true", "ret 1")
-	code = strings.ReplaceAll(code, "return false", "ret 0")
-	code = strings.ReplaceAll(code, "function ", "fn ")
-	return code
-}
-
-func htmlLangCode(lang string) string {
-	lang = strings.ToLower(lang)
-	switch {
-	case strings.Contains(lang, "python") || lang == "py":
-		return "p"
-	case strings.Contains(lang, "javascript") || lang == "js" || strings.Contains(lang, "typescript") || lang == "ts":
-		return "s"
-	case strings.Contains(lang, "java"):
-		return "j"
-	case strings.Contains(lang, "go") || lang == "golang":
-		return "g"
-	case strings.Contains(lang, "sql"):
-		return "q"
-	case strings.Contains(lang, "rust") || lang == "rs":
-		return "r"
-	case strings.Contains(lang, "bash") || lang == "sh" || lang == "shell":
-		return "b"
-	case strings.Contains(lang, "c++") || lang == "cpp":
-		return "c"
-	case lang == "c":
-		return "c"
-	default:
-		return "c"
-	}
-}
-
-// --- Text helpers ---
-
-func cleanText(s string) string {
-	s = htmlTagsRe.ReplaceAllString(s, " ")
+// cleanInline strips HTML tags from inline content and normalizes whitespace.
+func cleanInline(s string) string {
+	s = htmlAllTagsRe.ReplaceAllString(s, " ")
 	s = decodeHTMLEntities(s)
-	s = htmlWhitespaceRe.ReplaceAllString(s, " ")
+	s = htmlMultiSpaceRe.ReplaceAllString(s, " ")
 	return strings.TrimSpace(s)
+}
+
+// stripCodeComments removes comments from code blocks for compactness.
+var (
+	codeBlockCommentRe = regexp.MustCompile(`(?s)/\*.*?\*/`)
+	codeLineCommentRe  = regexp.MustCompile(`(?m)^\s*//[^\n]*\n?`)
+	codeBlankLinesRe   = regexp.MustCompile(`\n{3,}`)
+)
+
+func stripCodeComments(code string) string {
+	code = codeBlockCommentRe.ReplaceAllString(code, "")
+	code = codeLineCommentRe.ReplaceAllString(code, "")
+	code = codeBlankLinesRe.ReplaceAllString(code, "\n")
+	return strings.TrimSpace(code)
+}
+
+// applyAbbreviations shortens common terms and removes articles.
+func applyAbbreviations(text string) string {
+	for long, short := range htmlAbbrevMap {
+		text = strings.ReplaceAll(text, long, short)
+	}
+	text = htmlArticleRe.ReplaceAllString(text, "")
+	// Clean up double spaces from article removal
+	text = htmlMultiSpaceRe.ReplaceAllString(text, " ")
+	return text
 }
 
 func decodeHTMLEntities(s string) string {
