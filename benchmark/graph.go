@@ -7,21 +7,23 @@ import (
 	"strings"
 )
 
-// GenerateGraph produces an SVG line chart showing how compression scales
-// with content size. X axis = number of pages, Y axis = net token savings %.
-// Each domain (HTML, JSON, Code) gets its own line.
+// graphPoint holds per-category, per-scale data for chart rendering.
+type graphPoint struct {
+	pages       int
+	rawPct      float64 // raw token compression %
+	amortPct    float64 // amortized net savings %
+	netPct      float64 // pessimistic net savings % (N=1)
+	origTok     int
+	savedTokRaw int
+	savedTokNet int
+}
+
+// GenerateGraph produces a dual-panel SVG chart:
+//   - Top panel: Raw token compression % (no system prompt overhead)
+//   - Bottom panel: Net token savings % with system prompt amortized over N messages
 func GenerateGraph(results []BenchmarkResult, outputPath string) error {
 	if len(results) == 0 {
 		return fmt.Errorf("no benchmark results to graph")
-	}
-
-	// Group results by category
-	type point struct {
-		pages    int
-		netPct   float64
-		tokPct   float64
-		origTok  int
-		savedTok int
 	}
 
 	categories := []string{"HTML Documentation", "JSON API Responses", "Source Code"}
@@ -36,71 +38,101 @@ func GenerateGraph(results []BenchmarkResult, outputPath string) error {
 		"Source Code":        "Source Code",
 	}
 
-	data := make(map[string][]point)
+	data := make(map[string][]graphPoint)
 	for _, r := range results {
-		data[r.Category] = append(data[r.Category], point{
-			pages:    r.Pages,
-			netPct:   r.NetTokenRatio * 100,
-			tokPct:   r.TokenRatio * 100,
-			origTok:  r.OriginalTokens,
-			savedTok: r.NetTokenSavings,
+		rawSaved := r.OriginalTokens - r.CompressedTokens
+		data[r.Category] = append(data[r.Category], graphPoint{
+			pages:       r.Pages,
+			rawPct:      r.TokenRatio * 100,
+			amortPct:    r.AmortizedNetRatio * 100,
+			netPct:      r.NetTokenRatio * 100,
+			origTok:     r.OriginalTokens,
+			savedTokRaw: rawSaved,
+			savedTokNet: r.AmortizedNetSavings,
 		})
 	}
 
-	// Layout
+	// Layout — two stacked charts
 	const (
 		svgWidth    = 900
-		svgHeight   = 540
+		svgHeight   = 880
 		leftMargin  = 80
 		rightMargin = 30
-		topMargin   = 80
-		botMargin   = 120
+		topMargin   = 70
+		chartH      = 300
+		chartGap    = 100
+		botMargin   = 100
 	)
 	chartW := svgWidth - leftMargin - rightMargin
-	chartH := svgHeight - topMargin - botMargin
 
-	// Y-axis range: find min and max net savings %
-	yMin := math.MaxFloat64
-	yMax := -math.MaxFloat64
-	for _, pts := range data {
-		for _, p := range pts {
-			if p.netPct < yMin {
-				yMin = p.netPct
-			}
-			if p.netPct > yMax {
-				yMax = p.netPct
-			}
-		}
-	}
-
-	// Round axis bounds for nice ticks
-	yMin = math.Floor(yMin/10) * 10
-	if yMin > -10 {
-		yMin = -10
-	}
-	yMax = math.Ceil(yMax/10) * 10
-	if yMax < 10 {
-		yMax = 10
-	}
-	yRange := yMax - yMin
-
-	// X-axis: page counts
+	// X-axis shared config
 	xTicks := []int{1, 5, 10, 15, 20}
-	xMin := 0.0
-	xMax := 22.0
+	xMin, xMax := 0.0, 22.0
 	xRange := xMax - xMin
 
 	toSvgX := func(pages int) int {
 		return leftMargin + int(float64(chartW)*(float64(pages)-xMin)/xRange)
 	}
-	toSvgY := func(pct float64) int {
-		return topMargin + int(float64(chartH)*(yMax-pct)/yRange)
+
+	// --- Compute Y ranges for each panel ---
+
+	// Top panel: raw compression %
+	rawMin, rawMax := math.MaxFloat64, -math.MaxFloat64
+	for _, pts := range data {
+		for _, p := range pts {
+			if p.rawPct < rawMin {
+				rawMin = p.rawPct
+			}
+			if p.rawPct > rawMax {
+				rawMax = p.rawPct
+			}
+		}
+	}
+	rawMin = math.Floor(rawMin/10) * 10
+	if rawMin > 0 {
+		rawMin = 0
+	}
+	rawMax = math.Ceil(rawMax/10) * 10
+	if rawMax < 20 {
+		rawMax = 20
+	}
+	rawRange := rawMax - rawMin
+
+	// Bottom panel: amortized net %
+	netMin, netMax := math.MaxFloat64, -math.MaxFloat64
+	for _, pts := range data {
+		for _, p := range pts {
+			if p.amortPct < netMin {
+				netMin = p.amortPct
+			}
+			if p.amortPct > netMax {
+				netMax = p.amortPct
+			}
+		}
+	}
+	netMin = math.Floor(netMin/10) * 10
+	if netMin > -10 {
+		netMin = -10
+	}
+	netMax = math.Ceil(netMax/10) * 10
+	if netMax < 10 {
+		netMax = 10
+	}
+	netRange := netMax - netMin
+
+	topChartY := topMargin
+	botChartY := topMargin + chartH + chartGap
+
+	toSvgYTop := func(pct float64) int {
+		return topChartY + int(float64(chartH)*(rawMax-pct)/rawRange)
+	}
+	toSvgYBot := func(pct float64) int {
+		return botChartY + int(float64(chartH)*(netMax-pct)/netRange)
 	}
 
 	// Colors
 	const (
 		colorBg      = "#ffffff"
-		colorText    = "#1e293b"
 		colorGrid    = "#e2e8f0"
 		colorSubtext = "#64748b"
 		colorZero    = "#cbd5e1"
@@ -115,26 +147,27 @@ func GenerateGraph(results []BenchmarkResult, outputPath string) error {
 	b.WriteString("\n")
 
 	// Styles
-	b.WriteString(`<style>`)
-	b.WriteString(fmt.Sprintf(`
-    .title { font-family: Arial, Helvetica, sans-serif; font-size: 18px; font-weight: bold; fill: %s; }
-    .subtitle { font-family: Arial, Helvetica, sans-serif; font-size: 12px; fill: %s; }
-    .axis-label { font-family: Arial, Helvetica, sans-serif; font-size: 11px; fill: %s; }
-    .axis-title { font-family: Arial, Helvetica, sans-serif; font-size: 12px; fill: %s; font-weight: bold; }
-    .legend-text { font-family: Arial, Helvetica, sans-serif; font-size: 11px; fill: %s; }
-    .note { font-family: Arial, Helvetica, sans-serif; font-size: 10px; fill: %s; font-style: italic; }
+	b.WriteString(`<style>
+    .title { font-family: Arial, Helvetica, sans-serif; font-size: 18px; font-weight: bold; fill: #1e293b; }
+    .chart-title { font-family: Arial, Helvetica, sans-serif; font-size: 14px; font-weight: bold; fill: #1e293b; }
+    .subtitle { font-family: Arial, Helvetica, sans-serif; font-size: 11px; fill: #64748b; }
+    .axis-label { font-family: Arial, Helvetica, sans-serif; font-size: 11px; fill: #64748b; }
+    .axis-title { font-family: Arial, Helvetica, sans-serif; font-size: 12px; fill: #1e293b; font-weight: bold; }
+    .legend-text { font-family: Arial, Helvetica, sans-serif; font-size: 11px; fill: #1e293b; }
+    .note { font-family: Arial, Helvetica, sans-serif; font-size: 10px; fill: #64748b; font-style: italic; }
     .data-label { font-family: Arial, Helvetica, sans-serif; font-size: 10px; font-weight: bold; }
-  `, colorText, colorSubtext, colorSubtext, colorText, colorText, colorSubtext))
-	b.WriteString(`</style>`)
+    .summary-title { font-family: Arial, Helvetica, sans-serif; font-size: 12px; font-weight: bold; fill: #1e293b; }
+    .summary-text { font-family: Arial, Helvetica, sans-serif; font-size: 11px; fill: #1e293b; }
+  </style>`)
 	b.WriteString("\n")
 
-	// Title
-	b.WriteString(fmt.Sprintf(`<text x="%d" y="30" class="title">UCCP Compression: Token Savings at Scale</text>`, leftMargin))
+	// Main title
+	b.WriteString(fmt.Sprintf(`<text x="%d" y="25" class="title">UCCP Compression: Token Savings Benchmark</text>`, leftMargin))
 	b.WriteString("\n")
-	b.WriteString(fmt.Sprintf(`<text x="%d" y="48" class="subtitle">Net token savings (%%) vs content size — measured with tiktoken cl100k_base (includes system prompt overhead)</text>`, leftMargin))
+	b.WriteString(fmt.Sprintf(`<text x="%d" y="42" class="subtitle">Measured with tiktoken cl100k_base on realistic generated test data</text>`, leftMargin))
 	b.WriteString("\n")
 
-	// Legend
+	// Legend (top right)
 	legendX := svgWidth - rightMargin - 140
 	for i, cat := range categories {
 		ly := 18 + i*18
@@ -149,6 +182,76 @@ func GenerateGraph(results []BenchmarkResult, outputPath string) error {
 		b.WriteString("\n")
 	}
 
+	// ===== TOP PANEL: Raw Token Compression =====
+	b.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="chart-title">Raw Token Compression %%</text>`,
+		leftMargin, topChartY-8))
+	b.WriteString("\n")
+
+	drawChart(&b, topChartY, chartH, chartW, leftMargin, rawMin, rawMax, rawRange,
+		colorGrid, colorSubtext, colorZero, xTicks, toSvgX, toSvgYTop,
+		categories, categoryColors, data, "rawPct", "Number of pages / files", "Token savings (%)")
+
+	// ===== BOTTOM PANEL: Net Token Savings (Amortized) =====
+	b.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="chart-title">Net Token Savings (system prompt amortized over %d messages)</text>`,
+		leftMargin, botChartY-8, DefaultAmortizationDepth))
+	b.WriteString("\n")
+
+	drawChart(&b, botChartY, chartH, chartW, leftMargin, netMin, netMax, netRange,
+		colorGrid, colorSubtext, colorZero, xTicks, toSvgX, toSvgYBot,
+		categories, categoryColors, data, "amortPct", "Number of pages / files", "Net token savings (%)")
+
+	// ===== SUMMARY BOX =====
+	boxY := botChartY + chartH + 40
+	boxX := leftMargin
+	boxW := chartW
+	boxH := 75
+
+	b.WriteString(fmt.Sprintf(`<rect x="%d" y="%d" width="%d" height="%d" rx="6" fill="#f8fafc" stroke="%s" stroke-width="1"/>`,
+		boxX, boxY, boxW, boxH, colorGrid))
+	b.WriteString("\n")
+
+	summaryY := boxY + 18
+	b.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="summary-title">At 20 pages/files:</text>`, boxX+12, summaryY))
+	b.WriteString("\n")
+
+	colW := boxW / 3
+	colIdx := 0
+	for _, cat := range categories {
+		pts := data[cat]
+		for _, p := range pts {
+			if p.pages == 20 {
+				cx := boxX + 12 + colIdx*colW
+				b.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="summary-text" fill="%s">%s: %.0f%% raw / %+.0f%% net (%s tok saved)</text>`,
+					cx, summaryY+18, categoryColors[cat], categoryLabels[cat],
+					p.rawPct, p.amortPct, formatInt(p.savedTokNet)))
+				b.WriteString("\n")
+				colIdx++
+			}
+		}
+	}
+
+	b.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="note">Token counts: tiktoken cl100k_base · "Raw" = compression only · "Net" = after system prompt overhead amortized over %d messages per conversation</text>`,
+		boxX+12, summaryY+40, DefaultAmortizationDepth))
+	b.WriteString("\n")
+
+	b.WriteString("</svg>\n")
+
+	return os.WriteFile(outputPath, []byte(b.String()), 0644)
+}
+
+// drawChart renders a single chart panel (grid, axes, lines, labels).
+func drawChart(b *strings.Builder, chartY, chartH, chartW, leftMargin int,
+	yMin, yMax, yRange float64,
+	colorGrid, colorSubtext, colorZero string,
+	xTicks []int,
+	toSvgX func(int) int,
+	toSvgY func(float64) int,
+	categories []string,
+	categoryColors map[string]string,
+	data map[string][]graphPoint,
+	metric string, // "rawPct" or "amortPct"
+	xTitle, yTitle string,
+) {
 	// Y-axis grid lines and labels
 	yStep := 10.0
 	if yRange > 80 {
@@ -170,35 +273,35 @@ func GenerateGraph(results []BenchmarkResult, outputPath string) error {
 		b.WriteString("\n")
 	}
 
-	// X-axis ticks and labels
+	// X-axis ticks
 	for _, x := range xTicks {
 		sx := toSvgX(x)
 		b.WriteString(fmt.Sprintf(`<line x1="%d" y1="%d" x2="%d" y2="%d" stroke="%s" stroke-width="1"/>`,
-			sx, topMargin, sx, topMargin+chartH, colorGrid))
+			sx, chartY, sx, chartY+chartH, colorGrid))
 		b.WriteString("\n")
 		b.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="axis-label" text-anchor="middle">%d</text>`,
-			sx, topMargin+chartH+18, x))
+			sx, chartY+chartH+18, x))
 		b.WriteString("\n")
 	}
 
 	// Axis titles
-	b.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="axis-title" text-anchor="middle">Number of pages / files</text>`,
-		leftMargin+chartW/2, topMargin+chartH+38))
+	b.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="axis-title" text-anchor="middle">%s</text>`,
+		leftMargin+chartW/2, chartY+chartH+38, xTitle))
 	b.WriteString("\n")
-	// Rotated Y axis title
-	b.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="axis-title" text-anchor="middle" transform="rotate(-90 %d %d)">Net token savings (%%)</text>`,
-		20, topMargin+chartH/2, 20, topMargin+chartH/2))
-	b.WriteString("\n")
-
-	// Chart border (axes)
-	b.WriteString(fmt.Sprintf(`<line x1="%d" y1="%d" x2="%d" y2="%d" stroke="%s" stroke-width="2"/>`,
-		leftMargin, topMargin, leftMargin, topMargin+chartH, colorSubtext))
-	b.WriteString("\n")
-	b.WriteString(fmt.Sprintf(`<line x1="%d" y1="%d" x2="%d" y2="%d" stroke="%s" stroke-width="2"/>`,
-		leftMargin, topMargin+chartH, leftMargin+chartW, topMargin+chartH, colorSubtext))
+	midY := chartY + chartH/2
+	b.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="axis-title" text-anchor="middle" transform="rotate(-90 %d %d)">%s</text>`,
+		20, midY, 20, midY, yTitle))
 	b.WriteString("\n")
 
-	// Plot lines and data points for each category
+	// Chart border
+	b.WriteString(fmt.Sprintf(`<line x1="%d" y1="%d" x2="%d" y2="%d" stroke="%s" stroke-width="2"/>`,
+		leftMargin, chartY, leftMargin, chartY+chartH, colorSubtext))
+	b.WriteString("\n")
+	b.WriteString(fmt.Sprintf(`<line x1="%d" y1="%d" x2="%d" y2="%d" stroke="%s" stroke-width="2"/>`,
+		leftMargin, chartY+chartH, leftMargin+chartW, chartY+chartH, colorSubtext))
+	b.WriteString("\n")
+
+	// Plot lines and data points
 	for _, cat := range categories {
 		pts, ok := data[cat]
 		if !ok || len(pts) == 0 {
@@ -206,30 +309,34 @@ func GenerateGraph(results []BenchmarkResult, outputPath string) error {
 		}
 		color := categoryColors[cat]
 
-		// Build polyline points
 		var polyPoints []string
 		for _, p := range pts {
+			val := p.rawPct
+			if metric == "amortPct" {
+				val = p.amortPct
+			}
 			sx := toSvgX(p.pages)
-			sy := toSvgY(p.netPct)
+			sy := toSvgY(val)
 			polyPoints = append(polyPoints, fmt.Sprintf("%d,%d", sx, sy))
 		}
 
-		// Line
 		b.WriteString(fmt.Sprintf(`<polyline points="%s" fill="none" stroke="%s" stroke-width="2.5" stroke-linejoin="round"/>`,
 			strings.Join(polyPoints, " "), color))
 		b.WriteString("\n")
 
-		// Data points and labels
 		for _, p := range pts {
+			val := p.rawPct
+			if metric == "amortPct" {
+				val = p.amortPct
+			}
 			sx := toSvgX(p.pages)
-			sy := toSvgY(p.netPct)
+			sy := toSvgY(val)
 
-			// Circle marker
 			b.WriteString(fmt.Sprintf(`<circle cx="%d" cy="%d" r="4" fill="%s" stroke="white" stroke-width="1.5"/>`,
 				sx, sy, color))
 			b.WriteString("\n")
 
-			// Label on last point and first point
+			// Label first and last points
 			if p.pages == 20 || p.pages == 1 {
 				labelY := sy - 10
 				anchor := "middle"
@@ -240,57 +347,15 @@ func GenerateGraph(results []BenchmarkResult, outputPath string) error {
 					anchor = "start"
 				}
 				sign := ""
-				if p.netPct >= 0 {
+				if val >= 0 {
 					sign = "+"
 				}
 				b.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="data-label" fill="%s" text-anchor="%s">%s%.1f%%</text>`,
-					sx, labelY, color, anchor, sign, p.netPct))
+					sx, labelY, color, anchor, sign, val))
 				b.WriteString("\n")
 			}
 		}
 	}
-
-	// Summary box at bottom
-	boxY := svgHeight - botMargin + 55
-	boxX := leftMargin
-	boxW := chartW
-	boxH := 70
-
-	b.WriteString(fmt.Sprintf(`<rect x="%d" y="%d" width="%d" height="%d" rx="6" fill="#f8fafc" stroke="%s" stroke-width="1"/>`,
-		boxX, boxY, boxW, boxH, colorGrid))
-	b.WriteString("\n")
-
-	// Summary: at 20 pages — three columns
-	summaryY := boxY + 18
-	b.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="axis-title">At 20 pages/files:</text>`, boxX+12, summaryY))
-	b.WriteString("\n")
-
-	colW := boxW / 3
-	colIdx := 0
-	for _, cat := range categories {
-		pts := data[cat]
-		for _, p := range pts {
-			if p.pages == 20 {
-				sign := ""
-				if p.netPct >= 0 {
-					sign = "+"
-				}
-				cx := boxX + 12 + colIdx*colW
-				b.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="axis-label" fill="%s">%s: %s%.1f%% net (%s tokens)</text>`,
-					cx, summaryY+18, categoryColors[cat], categoryLabels[cat], sign, p.netPct, formatInt(p.savedTok)))
-				b.WriteString("\n")
-				colIdx++
-			}
-		}
-	}
-
-	b.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="note">Token counts measured with tiktoken cl100k_base · net savings include one-time system prompt overhead per domain</text>`,
-		boxX+12, summaryY+38))
-	b.WriteString("\n")
-
-	b.WriteString("</svg>\n")
-
-	return os.WriteFile(outputPath, []byte(b.String()), 0644)
 }
 
 // formatInt formats an integer with comma separators (e.g., 1,234).
@@ -314,14 +379,4 @@ func formatInt(n int) string {
 		result.WriteString(s[i : i+3])
 	}
 	return result.String()
-}
-
-// escapeXML escapes special characters for safe embedding in SVG/XML text.
-func escapeXML(s string) string {
-	s = strings.ReplaceAll(s, "&", "&amp;")
-	s = strings.ReplaceAll(s, "<", "&lt;")
-	s = strings.ReplaceAll(s, ">", "&gt;")
-	s = strings.ReplaceAll(s, "'", "&apos;")
-	s = strings.ReplaceAll(s, "\"", "&quot;")
-	return s
 }
