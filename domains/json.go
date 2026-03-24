@@ -13,10 +13,14 @@ import (
 // JSONCompressor minifies JSON content for maximum token efficiency.
 // For arrays of objects with repeated structure, it extracts the schema
 // and emits a columnar format: keys once, then rows of values.
-type JSONCompressor struct{}
+type JSONCompressor struct {
+	usedKeyAbbrevs map[string]bool
+}
 
 func NewJSONCompressor() *JSONCompressor {
-	return &JSONCompressor{}
+	return &JSONCompressor{
+		usedKeyAbbrevs: make(map[string]bool),
+	}
 }
 
 // jsonKeyAbbrevs maps long common JSON keys to short forms.
@@ -56,6 +60,7 @@ var jsonKeyAbbrevs = map[string]string{
 // Compress minifies JSON. For arrays of objects it uses columnar format.
 // Handles multiple JSON documents concatenated with whitespace.
 func (j *JSONCompressor) Compress(content string) (string, error) {
+	j.usedKeyAbbrevs = make(map[string]bool)
 	content = strings.TrimSpace(content)
 
 	// Try as a single JSON value first
@@ -142,6 +147,7 @@ func (j *JSONCompressor) compressArray(arr []interface{}) (string, bool) {
 	for i, k := range keys {
 		if short, ok := jsonKeyAbbrevs[k]; ok {
 			abbrKeys[i] = short
+			j.usedKeyAbbrevs[short+"="+k] = true
 		} else {
 			abbrKeys[i] = k
 		}
@@ -216,6 +222,7 @@ func (j *JSONCompressor) flattenValue(v interface{}) string {
 			short := k
 			if s, ok := jsonKeyAbbrevs[k]; ok {
 				short = s
+				j.usedKeyAbbrevs[s+"="+k] = true
 			}
 			parts[i] = short + "=" + j.flattenValue(val[k])
 		}
@@ -238,7 +245,11 @@ func (j *JSONCompressor) compactAndAbbreviate(content string) string {
 		content = buf.String()
 	}
 	for long, short := range jsonKeyAbbrevs {
-		content = strings.ReplaceAll(content, `"`+long+`"`, `"`+short+`"`)
+		quoted := `"` + long + `"`
+		if strings.Contains(content, quoted) {
+			content = strings.ReplaceAll(content, quoted, `"`+short+`"`)
+			j.usedKeyAbbrevs[short+"="+long] = true
+		}
 	}
 	return content
 }
@@ -255,7 +266,11 @@ func (j *JSONCompressor) fallbackCompress(content string) string {
 	}
 	content = strings.Join(result, "\n")
 	for long, short := range jsonKeyAbbrevs {
-		content = strings.ReplaceAll(content, `"`+long+`"`, `"`+short+`"`)
+		quoted := `"` + long + `"`
+		if strings.Contains(content, quoted) {
+			content = strings.ReplaceAll(content, quoted, `"`+short+`"`)
+			j.usedKeyAbbrevs[short+"="+long] = true
+		}
 	}
 	return content
 }
@@ -316,6 +331,28 @@ func (j *JSONCompressor) decompressColumnar(compressed string) (string, error) {
 
 	data, _ := json.MarshalIndent(objects, "", "  ")
 	return string(data), nil
+}
+
+// AdaptiveSystemPrompt returns a system prompt containing only the key
+// abbreviations that were used in the last Compress() call.
+func (j *JSONCompressor) AdaptiveSystemPrompt() string {
+	base := `UCCP JSON: Minified JSON. Arrays use columnar format:
+COLS:key1,key2,key3
+ROW:val1,val2,val3
+ROW:val1,val2,val3
+Nested objects: {k=v;k=v} Arrays: [a;b;c] Booleans: 1/0`
+
+	if len(j.usedKeyAbbrevs) == 0 {
+		return base
+	}
+
+	var parts []string
+	for entry := range j.usedKeyAbbrevs {
+		parts = append(parts, entry)
+	}
+	sort.Strings(parts)
+
+	return base + "\nKey abbreviations: " + strings.Join(parts, " ")
 }
 
 func (j *JSONCompressor) SystemPrompt() string {

@@ -3,6 +3,7 @@ package domains
 import (
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/aguzmans/uccp/core"
@@ -10,20 +11,51 @@ import (
 
 // CodeCompressor compresses code, architecture, jobs, and technical content
 // Optimized for agent-to-agent communication in software development contexts
-type CodeCompressor struct{}
+type CodeCompressor struct {
+	usedAbbreviations map[string]bool
+	usedSymbols       map[string]bool
+}
 
 // NewCodeCompressor creates a new code domain compressor
 func NewCodeCompressor() *CodeCompressor {
-	return &CodeCompressor{}
+	return &CodeCompressor{
+		usedAbbreviations: make(map[string]bool),
+		usedSymbols:       make(map[string]bool),
+	}
 }
 
 // Compress converts code/technical content to UCCP format.
 // Pipeline: strip comments → collapse indentation → abbreviate terms.
 func (c *CodeCompressor) Compress(content string) (string, error) {
+	c.usedAbbreviations = make(map[string]bool)
+	c.usedSymbols = make(map[string]bool)
 	result := stripComments(content)
 	result = collapseIndentation(result)
-	result = compress(result)
+	result = c.compressTracked(result)
 	return result, nil
+}
+
+// compressTracked applies abbreviations and symbols while tracking which ones
+// were actually used.
+func (c *CodeCompressor) compressTracked(text string) string {
+	for old, new := range abbrevMap {
+		if strings.Contains(text, old) {
+			text = strings.ReplaceAll(text, old, new)
+			c.usedAbbreviations[old+"="+new] = true
+		}
+	}
+	for old, new := range symbolMap {
+		if strings.Contains(text, old) {
+			text = strings.ReplaceAll(text, old, new)
+			c.usedSymbols[strings.TrimSpace(old)+"="+new] = true
+		}
+	}
+	text = codeArticleRe.ReplaceAllString(text, "")
+	text = codeWhitespaceRe.ReplaceAllString(text, " ")
+	text = strings.ReplaceAll(text, "  ", " ")
+	text = strings.ReplaceAll(text, " .", ".")
+	text = strings.ReplaceAll(text, " ,", ",")
+	return strings.TrimSpace(text)
 }
 
 // stripComments removes single-line (//, #) and block (/* */) comments.
@@ -154,6 +186,63 @@ EXAMPLES:
 When reading UCCP format, decode the abbreviations and symbols mentally.
 The content is intentionally compact to save tokens while remaining readable.
 `
+}
+
+// AdaptiveSystemPrompt returns a system prompt containing only the
+// abbreviations and symbols that were used in the last Compress() call.
+func (c *CodeCompressor) AdaptiveSystemPrompt() string {
+	// Collect unique abbreviation pairs (deduplicate case variants)
+	seenAbbrevs := make(map[string]string) // short -> long (lowercase preferred)
+	for entry := range c.usedAbbreviations {
+		parts := strings.SplitN(entry, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		long, short := parts[0], parts[1]
+		if _, ok := seenAbbrevs[short]; !ok || long[0] >= 'a' {
+			seenAbbrevs[short] = long
+		}
+	}
+
+	var abbrevParts []string
+	for short, long := range seenAbbrevs {
+		abbrevParts = append(abbrevParts, short+"="+long)
+	}
+	sort.Strings(abbrevParts)
+
+	var symbolParts []string
+	for entry := range c.usedSymbols {
+		symbolParts = append(symbolParts, entry)
+	}
+	sort.Strings(symbolParts)
+
+	var b strings.Builder
+	b.WriteString("UCCP (Ultra-Compact Content Protocol) - Code Domain\n\n")
+	b.WriteString("You are reading content in UCCP format - an ultra-compact pipe-delimited format designed to save tokens.\n\n")
+	b.WriteString("COMPRESSION RULES:\n")
+	b.WriteString("- Articles (the, a, an) removed\n")
+	b.WriteString("- Whitespace collapsed\n")
+	b.WriteString("- Common terms abbreviated\n")
+	b.WriteString("- Symbols used instead of words\n")
+	b.WriteString("- Critical details preserved (file paths, IDs, test counts)\n")
+
+	if len(abbrevParts) > 0 {
+		b.WriteString("\nABBREVIATIONS USED:\n")
+		for _, a := range abbrevParts {
+			b.WriteString(a + " ")
+		}
+		b.WriteString("\n")
+	}
+
+	if len(symbolParts) > 0 {
+		b.WriteString("\nSYMBOLS USED:\n")
+		for _, s := range symbolParts {
+			b.WriteString(s + " ")
+		}
+		b.WriteString("\n")
+	}
+
+	return b.String()
 }
 
 // EstimateTokens estimates token count for code content

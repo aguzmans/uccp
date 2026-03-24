@@ -3,6 +3,9 @@ package core
 import (
 	"math"
 	"strings"
+	"sync"
+
+	"github.com/pkoukk/tiktoken-go"
 )
 
 // CalculateCompressionRatio returns the compression ratio achieved
@@ -29,10 +32,38 @@ func CalculateCompressionRatio(original, compressed string) float64 {
 	return ratio
 }
 
-// EstimateTokenCount estimates the number of tokens in content
-// Uses a simple heuristic: ~4 characters per token for English text
-// This is approximate - actual tokenization varies by model
+var (
+	tiktokenEncoder *tiktoken.Tiktoken
+	tiktokenOnce    sync.Once
+)
+
+func initTiktoken() {
+	enc, err := tiktoken.GetEncoding("cl100k_base")
+	if err == nil {
+		tiktokenEncoder = enc
+	}
+}
+
+// EstimateTokenCount estimates the number of tokens in content using tiktoken
+// cl100k_base encoding for accurate counts. Falls back to ~4 chars/token
+// heuristic if tiktoken fails to initialize.
 func EstimateTokenCount(content string) int {
+	tiktokenOnce.Do(initTiktoken)
+	if tiktokenEncoder != nil {
+		content = strings.TrimSpace(content)
+		if len(content) == 0 {
+			return 0
+		}
+		return len(tiktokenEncoder.Encode(content, nil, nil))
+	}
+	// Fallback to heuristic
+	return EstimateTokenCountHeuristic(content)
+}
+
+// EstimateTokenCountHeuristic estimates tokens using a simple ~4 characters
+// per token heuristic. Useful for deterministic testing or when tiktoken
+// is unavailable.
+func EstimateTokenCountHeuristic(content string) int {
 	const charsPerToken = 4.0
 
 	// Remove extra whitespace

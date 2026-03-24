@@ -14,6 +14,8 @@ const (
 	DomainJSON
 	// DomainText for plain text, markdown
 	DomainText
+	// DomainFinancial for financial content (market summaries, predictions)
+	DomainFinancial
 )
 
 // Compressor interface that all domain-specific compressors implement
@@ -29,6 +31,14 @@ type Compressor interface {
 
 	// EstimateTokens estimates token count for given content
 	EstimateTokens(content string) int
+}
+
+// AdaptivePrompter is an optional interface for compressors that can generate
+// prompts based on which abbreviations were actually used.
+type AdaptivePrompter interface {
+	// AdaptiveSystemPrompt returns a system prompt containing only the
+	// abbreviations and symbols that were used in the last Compress() call.
+	AdaptiveSystemPrompt() string
 }
 
 // CompressionResult contains compression outcome and metadata

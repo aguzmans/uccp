@@ -55,9 +55,18 @@ func TestCalculateCompressionRatio_IdenticalStrings(t *testing.T) {
 // --- EstimateTokenCount tests ---
 
 func TestEstimateTokenCount_NormalText(t *testing.T) {
-	// 20 chars -> ceil(20/4) = 5 tokens
 	content := "Hello world testing!"
 	tokens := EstimateTokenCount(content)
+
+	if tokens <= 0 {
+		t.Errorf("expected positive token count, got %d", tokens)
+	}
+}
+
+func TestEstimateTokenCountHeuristic_NormalText(t *testing.T) {
+	// 20 chars -> ceil(20/4) = 5 tokens
+	content := "Hello world testing!"
+	tokens := EstimateTokenCountHeuristic(content)
 
 	if tokens <= 0 {
 		t.Errorf("expected positive token count, got %d", tokens)
@@ -78,6 +87,20 @@ func TestEstimateTokenCount_EmptyString(t *testing.T) {
 
 func TestEstimateTokenCount_WhitespaceOnly(t *testing.T) {
 	tokens := EstimateTokenCount("   \t\n  ")
+	if tokens != 0 {
+		t.Errorf("expected 0 tokens for whitespace-only string, got %d", tokens)
+	}
+}
+
+func TestEstimateTokenCountHeuristic_EmptyString(t *testing.T) {
+	tokens := EstimateTokenCountHeuristic("")
+	if tokens != 0 {
+		t.Errorf("expected 0 tokens for empty string, got %d", tokens)
+	}
+}
+
+func TestEstimateTokenCountHeuristic_WhitespaceOnly(t *testing.T) {
+	tokens := EstimateTokenCountHeuristic("   \t\n  ")
 	if tokens != 0 {
 		t.Errorf("expected 0 tokens for whitespace-only string, got %d", tokens)
 	}

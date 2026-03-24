@@ -2,6 +2,7 @@ package domains
 
 import (
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/aguzmans/uccp/core"
@@ -82,18 +83,74 @@ var (
 // HTMLCompressor converts HTML to compact markdown-like format.
 // Preserves semantic structure (headings, lists, code, tables, links)
 // while stripping all tag overhead, attributes, styles, and noise.
-type HTMLCompressor struct{}
+type HTMLCompressor struct {
+	usedAbbreviations map[string]bool
+}
 
 func NewHTMLCompressor() *HTMLCompressor {
-	return &HTMLCompressor{}
+	return &HTMLCompressor{
+		usedAbbreviations: make(map[string]bool),
+	}
 }
 
 // Compress converts HTML to compact markdown, preserving document order
 // and semantic tag types while eliminating all markup overhead.
 func (h *HTMLCompressor) Compress(content string) (string, error) {
 	md := htmlToMarkdown(content)
-	md = applyAbbreviations(md)
+	h.usedAbbreviations = make(map[string]bool)
+	md = h.applyAbbreviationsTracked(md)
 	return md, nil
+}
+
+// applyAbbreviationsTracked shortens common terms, removes articles, and
+// records which abbreviations were actually applied.
+func (h *HTMLCompressor) applyAbbreviationsTracked(text string) string {
+	for long, short := range htmlAbbrevMap {
+		if strings.Contains(text, long) {
+			text = strings.ReplaceAll(text, long, short)
+			h.usedAbbreviations[long+"="+short] = true
+		}
+	}
+	text = htmlArticleRe.ReplaceAllString(text, "")
+	text = htmlMultiSpaceRe.ReplaceAllString(text, " ")
+	return text
+}
+
+// AdaptiveSystemPrompt returns a system prompt containing only the
+// abbreviations that were used in the last Compress() call.
+func (h *HTMLCompressor) AdaptiveSystemPrompt() string {
+	if len(h.usedAbbreviations) == 0 {
+		return `Content compressed from HTML to compact markdown. Semantic structure preserved:
+# H1, ## H2, ### H3 = headings. - = list items. ` + "```" + `lang = code blocks.
+| col | col | = tables. [text](url) = links. **bold** *italic* = emphasis.
+Articles (the/a/an) removed.`
+	}
+
+	// Collect unique short=long pairs (deduplicate case variants)
+	seen := make(map[string]string) // short -> long (lowercase preferred)
+	for entry := range h.usedAbbreviations {
+		parts := strings.SplitN(entry, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		long, short := parts[0], parts[1]
+		// Prefer lowercase variant for legend display
+		if existing, ok := seen[short]; !ok || long[0] >= 'a' {
+			_ = existing
+			seen[short] = long
+		}
+	}
+
+	var abbrevParts []string
+	for short, long := range seen {
+		abbrevParts = append(abbrevParts, short+"="+long)
+	}
+	sort.Strings(abbrevParts)
+
+	return `Content compressed from HTML to compact markdown. Semantic structure preserved:
+# H1, ## H2, ### H3 = headings. - = list items. ` + "```" + `lang = code blocks.
+| col | col | = tables. [text](url) = links. **bold** *italic* = emphasis.
+Abbreviations: ` + strings.Join(abbrevParts, " ") + `. Articles (the/a/an) removed.`
 }
 
 func (h *HTMLCompressor) Decompress(compressed string) (string, error) {
