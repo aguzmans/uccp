@@ -304,6 +304,17 @@ func htmlToMarkdown(html string) string {
 	// 7. Clean up whitespace
 	html = htmlMultiSpaceRe.ReplaceAllString(html, " ")
 	html = htmlTrailingSpaceRe.ReplaceAllString(html, "")
+
+	// Remove lines with ONLY formatting markers (asterisks, slashes, pipes, dashes)
+	// These are usually leftover navigation icons or empty bold/italic markers
+	emptyFormattingRe := regexp.MustCompile(`(?m)^\s*[\*\/\|]\s*$`)
+	html = emptyFormattingRe.ReplaceAllString(html, "")
+
+	// Remove lines with ONLY markdown bold/italic markers (no content between them)
+	emptyMarkdownRe := regexp.MustCompile(`(?m)^\s*(\*\*|\*\*\*|__)\s*$`)
+	html = emptyMarkdownRe.ReplaceAllString(html, "")
+
+	// Collapse multiple blank lines (may have created new ones after cleanup above)
 	html = htmlMultiBlankRe.ReplaceAllString(html, "\n\n")
 
 	return strings.TrimSpace(html)

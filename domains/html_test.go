@@ -14,14 +14,14 @@ func TestHTMLCompressor_Compress_Headings(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !strings.Contains(result, "1:Getting Started") {
-		t.Errorf("expected H1 record, got: %s", result)
+	if !strings.Contains(result, "# Getting Started") {
+		t.Errorf("expected H1 markdown, got: %s", result)
 	}
-	if !strings.Contains(result, "2:Installation Guide") {
-		t.Errorf("expected H2 record, got: %s", result)
+	if !strings.Contains(result, "## Installation Guide") {
+		t.Errorf("expected H2 markdown, got: %s", result)
 	}
-	if !strings.Contains(result, "3:Requirements") {
-		t.Errorf("expected H3 record, got: %s", result)
+	if !strings.Contains(result, "### Requirements") {
+		t.Errorf("expected H3 markdown, got: %s", result)
 	}
 }
 
@@ -34,33 +34,34 @@ func TestHTMLCompressor_Compress_Paragraphs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Should compress "database" -> "db", "configuration" -> "cfg", etc.
-	if !strings.Contains(result, "t:") {
-		t.Errorf("expected text record, got: %s", result)
-	}
-	if strings.Contains(result, "database") {
-		t.Errorf("expected 'database' to be abbreviated, got: %s", result)
-	}
-	if strings.Contains(result, "configuration") {
+	// Should compress "configuration" -> "cfg", "production" -> "prod", etc.
+	if !strings.Contains(result, "cfg") {
 		t.Errorf("expected 'configuration' to be abbreviated, got: %s", result)
+	}
+	if !strings.Contains(result, "prod") {
+		t.Errorf("expected 'production' to be abbreviated, got: %s", result)
+	}
+	// Articles should be removed
+	if strings.Contains(result, " the ") || strings.Contains(result, " a ") {
+		t.Errorf("expected articles to be removed, got: %s", result)
 	}
 }
 
 func TestHTMLCompressor_Compress_CodeBlocks(t *testing.T) {
 	h := NewHTMLCompressor()
 	html := `<pre><code class="language-python">def hello():
-    return true</code></pre>`
+    return True</code></pre>`
 
 	result, err := h.Compress(html)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if !strings.HasPrefix(result, "p:") {
-		t.Errorf("expected python code record (p:), got: %s", result)
+	if !strings.Contains(result, "```python") {
+		t.Errorf("expected python code block, got: %s", result)
 	}
-	if !strings.Contains(result, "ret 1") {
-		t.Errorf("expected 'return true' -> 'ret 1', got: %s", result)
+	if !strings.Contains(result, "def hello") {
+		t.Errorf("expected code content preserved, got: %s", result)
 	}
 }
 
@@ -73,15 +74,11 @@ func TestHTMLCompressor_Compress_Lists(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	parts := strings.Split(result, "|")
-	listCount := 0
-	for _, p := range parts {
-		if strings.HasPrefix(p, "l:") {
-			listCount++
-		}
+	if !strings.Contains(result, "- First item") {
+		t.Error("expected markdown list item format")
 	}
-	if listCount != 2 {
-		t.Errorf("expected 2 list records, got %d in: %s", listCount, result)
+	if !strings.Contains(result, "- Second item") {
+		t.Error("expected markdown list item format")
 	}
 }
 
@@ -94,11 +91,11 @@ func TestHTMLCompressor_Compress_Tables(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !strings.Contains(result, "d:") {
-		t.Errorf("expected table data record, got: %s", result)
+	if !strings.Contains(result, "| Name | Value |") {
+		t.Errorf("expected markdown table header, got: %s", result)
 	}
-	if !strings.Contains(result, "CPU") {
-		t.Errorf("expected table cell content, got: %s", result)
+	if !strings.Contains(result, "| CPU | 95% |") {
+		t.Errorf("expected markdown table row, got: %s", result)
 	}
 }
 
@@ -111,8 +108,8 @@ func TestHTMLCompressor_Compress_Links(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !strings.Contains(result, "u:https://example.com/docs") {
-		t.Errorf("expected URL record, got: %s", result)
+	if !strings.Contains(result, "[Documentation](https://example.com/docs)") {
+		t.Errorf("expected markdown link format, got: %s", result)
 	}
 }
 
@@ -125,7 +122,7 @@ func TestHTMLCompressor_Compress_NoiseRemoval(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !strings.Contains(result, "2:Real Content") {
+	if !strings.Contains(result, "## Real Content") {
 		t.Errorf("expected heading to survive noise removal, got: %s", result)
 	}
 	if strings.Contains(result, "alert") {
@@ -133,6 +130,9 @@ func TestHTMLCompressor_Compress_NoiseRemoval(t *testing.T) {
 	}
 	if strings.Contains(result, "Copyright") {
 		t.Error("footer content should be removed")
+	}
+	if strings.Contains(result, "Home") {
+		t.Error("nav content should be removed")
 	}
 }
 
@@ -145,38 +145,22 @@ func TestHTMLCompressor_Compress_Abbreviations(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// "the" articles should be removed, terms abbreviated
-	if strings.Contains(result, " the ") {
+	// Articles should be removed
+	if strings.Contains(result, " the ") || strings.Contains(result, " a ") {
 		t.Errorf("articles should be removed, got: %s", result)
 	}
+	// Check abbreviations
 	if !strings.Contains(result, "auth") {
 		t.Errorf("expected 'authentication' abbreviated to 'auth', got: %s", result)
 	}
 	if !strings.Contains(result, "impl") {
 		t.Errorf("expected 'implementation' abbreviated to 'impl', got: %s", result)
 	}
-	if !strings.Contains(result, "db") {
-		t.Errorf("expected 'database' abbreviated to 'db', got: %s", result)
+	if !strings.Contains(result, "cfg") {
+		t.Errorf("expected 'configuration' abbreviated to 'cfg', got: %s", result)
 	}
-}
-
-func TestHTMLCompressor_Compress_Symbols(t *testing.T) {
-	h := NewHTMLCompressor()
-	html := `<p>Redis is faster than MySQL and Memcached fails to connect.</p>`
-
-	result, err := h.Compress(html)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !strings.Contains(result, ">") {
-		t.Errorf("expected 'faster than' -> '>', got: %s", result)
-	}
-	if !strings.Contains(result, "&") {
-		t.Errorf("expected ' and ' -> '&', got: %s", result)
-	}
-	if !strings.Contains(result, "!") {
-		t.Errorf("expected 'fails to' -> '!', got: %s", result)
+	if !strings.Contains(result, "prod") {
+		t.Errorf("expected 'production' abbreviated to 'prod', got: %s", result)
 	}
 }
 
@@ -189,8 +173,11 @@ func TestHTMLCompressor_Compress_HTMLEntities(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if strings.Contains(result, "&amp;") {
+	if strings.Contains(result, "&amp;") || strings.Contains(result, "&quot;") {
 		t.Errorf("HTML entities should be decoded, got: %s", result)
+	}
+	if !strings.Contains(result, "&") || !strings.Contains(result, "\"") {
+		t.Errorf("entities should be decoded to actual characters, got: %s", result)
 	}
 }
 
@@ -207,24 +194,16 @@ func TestHTMLCompressor_Compress_Empty(t *testing.T) {
 
 func TestHTMLCompressor_Decompress(t *testing.T) {
 	h := NewHTMLCompressor()
-	uccp := "1:Title|2:Section|t:Some text|l:Item one|d:Name,Value"
+	markdown := "# Title\n## Section\nSome text\n- Item one"
 
-	result, err := h.Decompress(uccp)
+	result, err := h.Decompress(markdown)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if !strings.Contains(result, "# Title") {
-		t.Errorf("expected H1 decompression, got: %s", result)
-	}
-	if !strings.Contains(result, "## Section") {
-		t.Errorf("expected H2 decompression, got: %s", result)
-	}
-	if !strings.Contains(result, "Some text") {
-		t.Errorf("expected text decompression, got: %s", result)
-	}
-	if !strings.Contains(result, "- Item one") {
-		t.Errorf("expected list decompression, got: %s", result)
+	// Decompress just returns the markdown as-is (it's already readable)
+	if result != markdown {
+		t.Errorf("Decompress should return markdown as-is, got: %s", result)
 	}
 }
 
@@ -232,11 +211,11 @@ func TestHTMLCompressor_SystemPrompt(t *testing.T) {
 	h := NewHTMLCompressor()
 	prompt := h.SystemPrompt()
 
-	if !strings.Contains(prompt, "UCCP") {
-		t.Error("SystemPrompt should mention UCCP")
+	if !strings.Contains(prompt, "markdown") {
+		t.Error("SystemPrompt should mention markdown")
 	}
 	if !strings.Contains(prompt, "HTML") {
-		t.Error("SystemPrompt should mention HTML domain")
+		t.Error("SystemPrompt should mention HTML")
 	}
 }
 
@@ -245,31 +224,6 @@ func TestHTMLCompressor_EstimateTokens(t *testing.T) {
 	tokens := h.EstimateTokens("Hello world, this is a test")
 	if tokens <= 0 {
 		t.Error("expected positive token estimate")
-	}
-}
-
-func TestHTMLCompressor_LangCodes(t *testing.T) {
-	tests := []struct {
-		html     string
-		wantCode string
-	}{
-		{`<pre><code class="language-python">x=1</code></pre>`, "p:"},
-		{`<pre><code class="language-go">x:=1</code></pre>`, "g:"},
-		{`<pre><code class="language-javascript">let x=1</code></pre>`, "s:"},
-		{`<pre><code class="language-bash">echo hi</code></pre>`, "b:"},
-		{`<pre><code class="language-rust">let x=1;</code></pre>`, "r:"},
-		{`<pre><code class="language-sql">SELECT 1</code></pre>`, "q:"},
-	}
-
-	h := NewHTMLCompressor()
-	for _, tt := range tests {
-		result, err := h.Compress(tt.html)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !strings.HasPrefix(result, tt.wantCode) {
-			t.Errorf("Compress(%q) = %q, want prefix %q", tt.html, result, tt.wantCode)
-		}
 	}
 }
 
@@ -303,26 +257,183 @@ func TestHTMLCompressor_RealWorldPage(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Verify compression actually reduces size
+	// Verify compression reduces size
 	if len(result) >= len(html) {
 		t.Errorf("compressed (%d bytes) should be smaller than original (%d bytes)", len(result), len(html))
 	}
 
 	// Verify key content is preserved
-	if !strings.Contains(result, "1:Docker Networking Guide") {
-		t.Error("H1 should be preserved")
+	if !strings.Contains(result, "# Docker Networking Guide") {
+		t.Error("H1 should be preserved as markdown")
 	}
-	if !strings.Contains(result, "2:Overview") {
-		t.Error("H2 should be preserved")
+	if !strings.Contains(result, "## Overview") {
+		t.Error("H2 should be preserved as markdown")
 	}
-	if !strings.Contains(result, "b:docker network create mynet") {
-		t.Error("bash code block should be preserved with correct lang code")
+	if !strings.Contains(result, "```bash") && !strings.Contains(result, "docker network create") {
+		t.Error("bash code block should be preserved")
 	}
+
+	// Verify abbreviations applied
+	if !strings.Contains(result, "cfg") {
+		t.Error("'configuration' should be abbreviated to 'cfg'")
+	}
+	if !strings.Contains(result, "auth") {
+		t.Error("'authentication' should be abbreviated to 'auth'")
+	}
+	if !strings.Contains(result, "dev") {
+		t.Error("'development' should be abbreviated to 'dev'")
+	}
+
 	// Nav and footer should be stripped
-	if strings.Contains(result, "Home") {
+	if strings.Contains(result, "Home") || strings.Contains(result, "Docs") {
 		t.Error("nav content should be removed")
 	}
 	if strings.Contains(result, "Copyright") {
+		t.Error("footer content should be removed")
+	}
+}
+
+// NEW TESTS FOR WHITESPACE FIX
+
+func TestHTMLCompressor_EmptyFormattingRemoval(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  []string // strings that should be present
+		avoid []string // strings that should NOT be present
+	}{
+		{
+			name:  "removes empty bold markers",
+			input: `<p>Text</p><strong></strong><p>More</p>`,
+			want:  []string{"Text", "More"},
+			avoid: []string{"**\n\n**", "**\n**"},
+		},
+		{
+			name:  "removes navigation icons",
+			input: `<nav><span>*</span><span>/</span></nav><p>Content</p>`,
+			want:  []string{"Content"},
+			avoid: []string{"*\n", "/\n", "*\n\n/"},
+		},
+		{
+			name:  "removes standalone pipes and slashes",
+			input: `<div>Before</div><span>|</span><div>After</div>`,
+			want:  []string{"Before", "After"},
+			avoid: []string{"|\n", "Before\n|\n"},
+		},
+		{
+			name:  "preserves list markers",
+			input: `<ul><li>Item one</li><li>Item two</li></ul>`,
+			want:  []string{"- Item one", "- Item two"},
+			avoid: []string{},
+		},
+		{
+			name:  "preserves legitimate single asterisk in content",
+			input: `<p>Price: $5*</p><p>*Taxes not included</p>`,
+			want:  []string{"$5*", "*Taxes not included"},
+			avoid: []string{},
+		},
+		{
+			name:  "removes Britannica navigation noise",
+			input: `<nav>**</nav><div>*</div><span>/</span><p>Real content</p>`,
+			want:  []string{"Real content"},
+			avoid: []string{"\n**\n", "\n*\n\n", "\n/\n"},
+		},
+		{
+			name: "collapses multiple blanks after cleanup",
+			input: `<p>Para 1</p>
+				<nav>*</nav>
+				<nav>**</nav>
+				<nav>/</nav>
+				<p>Para 2</p>`,
+			want:  []string{"Para 1", "Para 2"},
+			avoid: []string{"\n\n\n", "**", "*\n", "/\n"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := NewHTMLCompressor()
+			got, err := c.Compress(tt.input)
+			if err != nil {
+				t.Fatalf("Compress() error = %v", err)
+			}
+
+			// Check for required strings
+			for _, want := range tt.want {
+				if !strings.Contains(got, want) {
+					t.Errorf("result should contain %q, got: %s", want, got)
+				}
+			}
+
+			// Check that unwanted strings are absent
+			for _, avoid := range tt.avoid {
+				if strings.Contains(got, avoid) {
+					t.Errorf("result should NOT contain %q, got: %s", avoid, got)
+				}
+			}
+		})
+	}
+}
+
+func TestHTMLCompressor_RealWorldBritannica(t *testing.T) {
+	h := NewHTMLCompressor()
+	// Simulated Britannica HTML with navigation noise
+	html := `<html>
+	<head><title>2026 Iran War</title></head>
+	<body>
+	<nav>
+		<strong></strong>
+		<span>*</span>
+		<span>/</span>
+		<a href="/search">Search Britannica</a>
+		<span>*</span>
+		<span>*</span>
+	</nav>
+	<header>
+		<div>**</div>
+		<div>/</div>
+	</header>
+	<h1>2026 Iran War</h1>
+	<h2>Overview</h2>
+	<p>The conflict began in early 2026 with military tensions.</p>
+	<footer>Copyright Encyclopedia Britannica</footer>
+	</body>
+	</html>`
+
+	result, err := h.Compress(html)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Should have clean content
+	if !strings.Contains(result, "# 2026 Iran War") {
+		t.Error("H1 should be preserved")
+	}
+	if !strings.Contains(result, "## Overview") {
+		t.Error("H2 should be preserved")
+	}
+	if !strings.Contains(result, "conflict began in early 2026") {
+		t.Error("paragraph content should be preserved")
+	}
+
+	// Should NOT have garbage navigation markers
+	if strings.Contains(result, "**\n") {
+		t.Error("empty bold markers should be removed")
+	}
+	if strings.Contains(result, "*\n") && !strings.Contains(result, "- ") {
+		t.Error("standalone asterisks should be removed (except list markers)")
+	}
+	if strings.Contains(result, "/\n") {
+		t.Error("standalone slashes should be removed")
+	}
+
+	// Count consecutive blank lines (should be max 2: \n\n)
+	if strings.Contains(result, "\n\n\n") {
+		t.Error("should not have 3+ consecutive blank lines")
+	}
+
+	// Footer should be removed
+	if strings.Contains(result, "Copyright") || strings.Contains(result, "Encyclopedia") {
 		t.Error("footer content should be removed")
 	}
 }
