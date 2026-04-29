@@ -41,6 +41,28 @@ type AdaptivePrompter interface {
 	AdaptiveSystemPrompt() string
 }
 
+// CompressionAdvisor is an optional interface for compressors that can quickly
+// pre-check whether compressing a piece of content is likely to be worthwhile,
+// without actually running the full compression. This is the low-cost screen
+// callers can use to skip UCCP for content that is too small or too random
+// to benefit. Compressors that implement this should aim for O(n) or better
+// (linear scan), avoiding full parse/transform.
+//
+// Added in v0.0.8 (2026-04-29) for callers that need to gate compression on
+// many candidate strings cheaply (e.g., agent-loop runtimes deciding whether
+// to UCCP each tool result before sending it back to the model).
+type CompressionAdvisor interface {
+	// IsWorthCompressing returns whether the content is large enough and
+	// structured enough that UCCP compression would meaningfully reduce
+	// it. The estimate is approximate bytes saved (post-compression size
+	// vs original); negative means compression would grow the content.
+	//
+	// Implementations should be cheap (linear scan, no full compression).
+	// Used as a fast pre-check: callers can skip ShouldCompress() entirely
+	// when this returns false.
+	IsWorthCompressing(content string) (worth bool, estBytesSaved int)
+}
+
 // CompressionResult contains compression outcome and metadata
 type CompressionResult struct {
 	// Original content

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -24,37 +25,108 @@ func NewJSONCompressor() *JSONCompressor {
 }
 
 // jsonKeyAbbrevs maps long common JSON keys to short forms.
+//
+// v0.0.8 (2026-04-29): expanded for LLM/agent JSON traffic. The original list
+// targeted CRUD-style records (employee data, audit timestamps). These cover
+// the OpenAI-compatible tool-call format and common research-agent payloads
+// where a single conversation can contain dozens of "tool_calls", "function",
+// "arguments", "role", "content", "message" repetitions.
 var jsonKeyAbbrevs = map[string]string{
-	"description":      "desc",
-	"configuration":    "cfg",
-	"environment":      "env",
-	"application":      "app",
-	"information":      "info",
-	"repository":       "repo",
-	"development":      "dev",
-	"production":       "prod",
-	"dependencies":     "deps",
-	"created_at":       "cAt",
-	"updated_at":       "uAt",
-	"deleted_at":       "dAt",
-	"first_name":       "fName",
-	"last_name":        "lName",
-	"email_address":    "email",
-	"phone_number":     "phone",
-	"is_active":        "active",
-	"is_enabled":       "enabled",
-	"is_deleted":       "deleted",
-	"employee_id":      "eid",
-	"manager_id":       "mgr",
-	"hire_date":        "hDt",
-	"last_review_date": "lrDt",
-	"pay_period":       "pp",
-	"currency":         "cur",
-	"current_rating":   "cRat",
-	"goals_completed":  "gDone",
-	"goals_total":      "gTot",
+	// Generic CRUD / record fields (original v0.0.7 set)
+	"description":         "desc",
+	"configuration":       "cfg",
+	"environment":         "env",
+	"application":         "app",
+	"information":         "info",
+	"repository":          "repo",
+	"development":         "dev",
+	"production":          "prod",
+	"dependencies":        "deps",
+	"created_at":          "cAt",
+	"updated_at":          "uAt",
+	"deleted_at":          "dAt",
+	"first_name":          "fName",
+	"last_name":           "lName",
+	"email_address":       "email",
+	"phone_number":        "phone",
+	"is_active":           "active",
+	"is_enabled":          "enabled",
+	"is_deleted":          "deleted",
+	"employee_id":         "eid",
+	"manager_id":          "mgr",
+	"hire_date":           "hDt",
+	"last_review_date":    "lrDt",
+	"pay_period":          "pp",
+	"currency":            "cur",
+	"current_rating":      "cRat",
+	"goals_completed":     "gDone",
+	"goals_total":         "gTot",
 	"peer_feedback_score": "pfScore",
-	"certifications":   "certs",
+	"certifications":      "certs",
+
+	// LLM / chat-completion / agent JSON (new in v0.0.8)
+	"tool_calls":        "tc",
+	"tool_call_id":      "tcid",
+	"tool_choice":       "tch",
+	"function":          "fn",
+	"function_call":     "fnCall",
+	"arguments":         "args",
+	"messages":          "msgs",
+	"message":           "msg",
+	"content":           "ct",
+	"role":              "rl",
+	"system":            "sys",
+	"assistant":         "ast",
+	"finish_reason":     "fr",
+	"choices":           "ch",
+	"index":             "ix",
+	"prompt_tokens":     "pt",
+	"completion_tokens": "ctk",
+	"total_tokens":      "tt",
+	"cached_tokens":     "ctt",
+	"model":             "m",
+	"usage":             "us",
+	"max_tokens":        "mxt",
+	"max_results":       "mr",
+	"max_chars":         "mc",
+	"temperature":       "tp",
+	"top_p":             "tpp",
+	"presence_penalty":  "pp_p",
+	"frequency_penalty": "fp",
+	"stop":              "stp",
+	"stream":            "str",
+	"response_format":   "rf",
+	"json_schema":       "js",
+
+	// Research / search / web-fetch payloads (new in v0.0.8)
+	"query":          "q",
+	"url":            "u",
+	"link":           "lk",
+	"title":          "t",
+	"snippet":        "sn",
+	"results":        "rs",
+	"search_results": "sr",
+	"summary":        "sm",
+	"author":         "au",
+	"published":      "pub",
+	"published_at":   "pAt",
+	"date":           "dt",
+	"score":          "sc",
+	"rank":           "rk",
+	"relevance":      "rv",
+	"warning":        "wn",
+	"reliable":       "rb",
+	"status":         "st",
+	"status_code":    "sct",
+	"error":          "er",
+	"success":        "ok",
+	"data":           "d",
+	"reason":         "rsn",
+	"category":       "cat",
+	"tags":           "tg",
+	"slug":           "sl",
+	"excerpt":        "ex",
+	"complexity":     "cx",
 }
 
 // Compress minifies JSON. For arrays of objects it uses columnar format.
@@ -238,12 +310,15 @@ func mustMarshal(v interface{}) string {
 	return string(data)
 }
 
-// compactAndAbbreviate does json.Compact + key abbreviation.
+// compactAndAbbreviate does json.Compact + key abbreviation. v0.0.8 also
+// auto-discovers high-frequency keys not in the static dictionary and assigns
+// them 2-char codes, plus quote-strips simple identifier values.
 func (j *JSONCompressor) compactAndAbbreviate(content string) string {
 	var buf bytes.Buffer
 	if err := json.Compact(&buf, []byte(content)); err == nil {
 		content = buf.String()
 	}
+	// Static dictionary first (deterministic abbrevs).
 	for long, short := range jsonKeyAbbrevs {
 		quoted := `"` + long + `"`
 		if strings.Contains(content, quoted) {
@@ -251,7 +326,116 @@ func (j *JSONCompressor) compactAndAbbreviate(content string) string {
 			j.usedKeyAbbrevs[short+"="+long] = true
 		}
 	}
+	// Auto-discovered abbrevs for high-frequency keys not already abbreviated.
+	content = j.autoAbbreviateFrequentKeys(content)
+	// Quote-strip simple identifier values: "web_search" -> ws when the value
+	// is a clean identifier, no whitespace/punctuation. Pure space saver, the
+	// LLM reads identifier values the same with or without quotes.
+	content = stripQuotesForIdentifierValues(content)
 	return content
+}
+
+// keyOccurrenceRe matches "key": at the start of an object property.
+var keyOccurrenceRe = regexp.MustCompile(`"([a-zA-Z_][a-zA-Z0-9_]{2,})":`)
+
+// autoAbbreviateFrequentKeys scans the content for object keys that appear
+// 3+ times AND are not already in jsonKeyAbbrevs. It assigns 2-character codes
+// (k0, k1, ..., k9, kA, kB, ...) and rewrites them. The mapping is recorded
+// in usedKeyAbbrevs so AdaptiveSystemPrompt can include it.
+//
+// Only fires for keys at least 3 chars long and appearing 3+ times — the
+// abbreviation only saves bytes when the key is long enough and used enough
+// to amortize the header cost.
+func (j *JSONCompressor) autoAbbreviateFrequentKeys(content string) string {
+	matches := keyOccurrenceRe.FindAllStringSubmatch(content, -1)
+	if len(matches) == 0 {
+		return content
+	}
+	// Count occurrences per key.
+	counts := make(map[string]int)
+	for _, m := range matches {
+		key := m[1]
+		// Skip keys already abbreviated by the static dictionary or this run.
+		if _, hit := jsonKeyAbbrevs[key]; hit {
+			continue
+		}
+		counts[key]++
+	}
+	// Only abbreviate keys that appear 3+ times AND are at least 4 chars long
+	// (shorter ones don't save enough vs the 2-char code).
+	type cand struct {
+		key   string
+		count int
+	}
+	var cands []cand
+	for k, c := range counts {
+		if c >= 3 && len(k) >= 4 {
+			cands = append(cands, cand{k, c})
+		}
+	}
+	if len(cands) == 0 {
+		return content
+	}
+	// Sort by frequency desc to assign shortest codes to most-frequent keys.
+	sort.Slice(cands, func(i, j int) bool { return cands[i].count > cands[j].count })
+
+	codeAlphabet := []byte("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	for i, c := range cands {
+		if i >= len(codeAlphabet) {
+			break
+		}
+		short := "k" + string(codeAlphabet[i])
+		quoted := `"` + c.key + `"`
+		content = strings.ReplaceAll(content, quoted, `"`+short+`"`)
+		j.usedKeyAbbrevs[short+"="+c.key] = true
+	}
+	return content
+}
+
+// identifierValueRe matches `"identifier"` style string values: clean identifiers
+// (alpha + digits + underscore + dash + dot) that are property values, not keys.
+// We require the preceding char to be `:` or `[` (value position) and the
+// following char to be `,`, `}`, `]`, or end-of-string.
+var identifierValueRe = regexp.MustCompile(`([:\[])"([a-zA-Z_][a-zA-Z0-9_\-\.]{0,32})"([,\}\]]|$)`)
+
+// stripQuotesForIdentifierValues removes quotes around clean-identifier string
+// values. JSON parsers reject this (it's invalid JSON), but UCCP-aware LLMs
+// understand the value the same way. Saves 2 bytes per occurrence and helps
+// when those values repeat (e.g., role="assistant", type="function").
+//
+// Carefully avoids: keys (the regex requires : or [ before), strings with
+// spaces or special chars, and JSON keywords (true/false/null) by checking
+// after the strip that the resulting bareword isn't a JSON literal.
+func stripQuotesForIdentifierValues(content string) string {
+	return identifierValueRe.ReplaceAllStringFunc(content, func(m string) string {
+		sub := identifierValueRe.FindStringSubmatch(m)
+		if len(sub) != 4 {
+			return m
+		}
+		prefix, value, suffix := sub[1], sub[2], sub[3]
+		// Don't strip JSON literals — parsers would interpret them as bools/null.
+		switch value {
+		case "true", "false", "null":
+			return m
+		}
+		// Don't strip pure-numeric values — they'd parse as numbers and lose type.
+		if isAllDigits(value) {
+			return m
+		}
+		return prefix + value + suffix
+	})
+}
+
+func isAllDigits(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, c := range s {
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 // fallbackCompress handles non-JSON content.
@@ -366,4 +550,72 @@ Key abbreviations: desc=description cfg=configuration env=environment app=applic
 
 func (j *JSONCompressor) EstimateTokens(content string) int {
 	return core.EstimateTokenCount(content)
+}
+
+// IsWorthCompressing implements core.CompressionAdvisor. Cheap heuristic that
+// avoids running full Compress() — counts how many bytes the obvious savings
+// (whitespace + dictionary key abbreviations) would yield, plus a bonus when
+// the content looks like an array of similarly-shaped objects (eligible for
+// columnar compression).
+//
+// Returns:
+//   - worth = true when estimated savings > 50 bytes AND > 5% of input.
+//   - estBytesSaved = approximate byte reduction.
+//
+// Designed to be O(n) — single linear scan plus a fixed-size dictionary loop.
+// Use this before ShouldCompress() to skip cheap rejects without running the
+// full compression pipeline.
+func (j *JSONCompressor) IsWorthCompressing(content string) (worth bool, estBytesSaved int) {
+	n := len(content)
+	if n < 200 {
+		return false, 0
+	}
+
+	// 1. Whitespace savings (json.Compact removes pretty-print whitespace).
+	whitespace := 0
+	for i := 0; i < n; i++ {
+		c := content[i]
+		if c == ' ' || c == '\n' || c == '\t' || c == '\r' {
+			whitespace++
+		}
+	}
+
+	// 2. Dictionary-key savings (each match saves len(key) - len(short) - 0
+	//    because both are quoted; subtract bytes saved per match).
+	dictSavings := 0
+	for long, short := range jsonKeyAbbrevs {
+		needle := `"` + long + `":`
+		hits := strings.Count(content, needle)
+		if hits == 0 {
+			continue
+		}
+		// Each match replaces "long" with "short", net delta per match is len(long)-len(short).
+		dictSavings += hits * (len(long) - len(short))
+	}
+
+	// 3. Columnar-array bonus: if content has a top-level array with multiple
+	//    object elements that share a structure, columnar format wins big.
+	//    Cheap detection: starts with `[{` and contains a key occurring 3+ times.
+	columnarBonus := 0
+	trimmed := strings.TrimSpace(content)
+	if strings.HasPrefix(trimmed, "[{") {
+		matches := keyOccurrenceRe.FindAllStringSubmatch(content, -1)
+		counts := make(map[string]int)
+		for _, m := range matches {
+			counts[m[1]]++
+		}
+		repeats := 0
+		for _, c := range counts {
+			if c >= 3 {
+				repeats++
+			}
+		}
+		// Each repeated key, after columnar, drops to one COLS line.
+		// Approximate savings: 5 bytes per repeated key occurrence beyond the first.
+		columnarBonus = repeats * 20
+	}
+
+	estBytesSaved = whitespace + dictSavings + columnarBonus
+	worth = estBytesSaved > 50 && estBytesSaved*100 > n*5
+	return worth, estBytesSaved
 }
