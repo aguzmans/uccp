@@ -60,9 +60,8 @@ compression cost up front.
 
 ## Why these changes
 
-Real-world agent-loop traffic profile (observed in
-[ai-post-to-wp](https://github.com/aguzmans/ai-post-to-wp), April 2026):
-each post generation produces 22+ tool-call iterations with the OpenAI
+Real-world agent-loop traffic profile (observed April 2026): a typical
+LLM agent loop produces 20+ tool-call iterations with the OpenAI
 chat-completions API. The same keys recur dozens of times per conversation
 (`tool_calls`, `function`, `arguments`, `role`, `content`, etc.) but were
 not in the v0.0.7 dictionary. After v0.0.8, a typical agent JSON payload

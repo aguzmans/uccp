@@ -16,7 +16,6 @@ CHANGELOG_v0.0.7.md   | +106 lines (release notes)
 
 ### Test Results
 ```bash
-cd /Users/abel/Documents/Code-Experiments/uccp
 go test ./domains -v
 
 # All 23 tests PASS:
@@ -45,8 +44,6 @@ go test ./domains -v
 ### 1. Push to GitHub
 
 ```bash
-cd /Users/abel/Documents/Code-Experiments/uccp
-
 # Push the commit
 git push origin master
 
@@ -98,65 +95,7 @@ go get github.com/aguzmans/uccp@v0.0.7
 
 ### Breaking Changes
 None - fully backward compatible with v0.0.6.
-
-### Credits
-Issue discovered during production usage in ai-post-to-wp project.
 ```
-
-### 3. Update ai-post-to-wp Project
-
-```bash
-cd /Users/abel/Documents/Code-Experiments/ai-post-to-wp
-
-# Update UCCP dependency
-go get github.com/aguzmans/uccp@v0.0.7
-go mod tidy
-
-# Verify version
-grep uccp go.mod
-# Should show: github.com/aguzmans/uccp v0.0.7
-
-# Test with production topic
-go run main.go --category international-relations-geopolitics \
-  --topic "Iran-U.S.-Israel Tensions" \
-  2>&1 | tee /tmp/test_uccp_v007.log
-
-# Check for improvements (should see cleaner output)
-grep "DEBUG: Formatted content preview" /tmp/test_uccp_v007.log | head -50
-```
-
-### 4. Verify Improvements in Production
-
-Compare before and after:
-
-**Before v0.0.7:**
-```
-DEBUG: Formatted content preview:
-**
-
- **
-
- **
-
- /
-
- Search Britannica
- *
-
- *
-```
-*21/25 lines are garbage (84%)*
-
-**After v0.0.7:**
-```
-DEBUG: Formatted content preview:
-Search Britannica
-
-Click here to search
-
-2026 Iran War
-```
-*0/25 lines are garbage (0%)*
 
 ---
 
@@ -164,18 +103,15 @@ Click here to search
 
 - [ ] GitHub release created with tag v0.0.7
 - [ ] Release notes published
-- [ ] ai-post-to-wp updated to v0.0.7
-- [ ] Production test shows clean output
 - [ ] Update UCCP README.md with latest version badge
-- [ ] Update ai-post-to-wp SEARCH_FAILURE_FIXES.md with results
 
 ---
 
 ## Rollback Instructions (if needed)
 
+Downstream consumers can pin to the previous version:
+
 ```bash
-# In ai-post-to-wp project
-cd /Users/abel/Documents/Code-Experiments/ai-post-to-wp
 go get github.com/aguzmans/uccp@v0.0.6
 go mod tidy
 ```
@@ -218,8 +154,8 @@ Future enhancements to consider:
 ## File Locations
 
 All changes committed to:
-- `/Users/abel/Documents/Code-Experiments/uccp/domains/html.go`
-- `/Users/abel/Documents/Code-Experiments/uccp/domains/html_test.go`
-- `/Users/abel/Documents/Code-Experiments/uccp/CHANGELOG_v0.0.7.md`
+- `domains/html.go`
+- `domains/html_test.go`
+- `CHANGELOG_v0.0.7.md`
 
 Git commit: `413dbd1` on `master` branch

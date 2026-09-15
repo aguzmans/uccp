@@ -571,5 +571,4 @@ Raw data → Extractive summary → Abstractive summary → LLM input
 ---
 
 **Last updated:** 2026-03-12
-**Maintainer:** Abel Guzman
 **Contributions:** Open to suggestions and corrections

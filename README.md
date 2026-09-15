@@ -456,7 +456,7 @@ If you use UCCP in research, please cite:
 ```
 @software{uccp2026,
   title = {UCCP: Ultra-Compact Content Protocol},
-  author = {Guzman, Abel},
+  author = {{The UCCP Authors}},
   year = {2026},
   url = {https://github.com/aguzmans/uccp}
 }

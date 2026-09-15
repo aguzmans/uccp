@@ -103,4 +103,4 @@ Fully backward compatible with v0.0.6. Existing code will automatically benefit 
 
 ## Credits
 
-Issue discovered and fixed during production analysis of ai-post-to-wp project.
+Issue discovered and fixed during production analysis of a downstream consumer project.

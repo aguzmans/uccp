@@ -7,9 +7,7 @@ Comprehensive benchmarks demonstrating UCCP compression performance across diffe
 ## Quick Start
 
 ```bash
-cd /Users/abel/Documents/Code-Experiments/uccp
-
-# Run all benchmarks
+# Run all benchmarks (from repo root)
 go test ./benchmarks/... -v
 
 # Run specific benchmark category

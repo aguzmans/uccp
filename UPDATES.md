@@ -92,8 +92,6 @@ uccp/
 ### 1. Commit Changes to UCCP
 
 ```bash
-cd /Users/abel/Documents/Code-Experiments/uccp
-
 # Stage changes
 git add README.md ROADMAP.md UPDATES.md
 
@@ -116,8 +114,6 @@ git push origin main
 ### 2. Optional: Tag as v0.0.3.1 (Documentation Update)
 
 ```bash
-cd /Users/abel/Documents/Code-Experiments/uccp
-
 # Tag documentation update
 git tag v0.0.3.1 -m "Documentation update: Add use cases and roadmap"
 
