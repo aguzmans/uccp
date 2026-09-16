@@ -74,6 +74,57 @@ Same Agent A reads 34 compressed summaries:
 go get github.com/aguzmans/uccp
 ```
 
+### Upgrading
+
+The entire `v0.0.x` line ships **no breaking API changes** — every release has
+been additive (new abbreviations, new optional interfaces, bug fixes). Upgrade
+with:
+
+```bash
+go get -u github.com/aguzmans/uccp
+go mod tidy
+```
+
+Pin a specific version:
+
+```bash
+go get github.com/aguzmans/uccp@v0.0.9
+```
+
+Check what you're on:
+
+```bash
+go list -m github.com/aguzmans/uccp
+```
+
+**What changes when you upgrade (v0.0.6 → v0.0.9):**
+
+| From | Notable additions | Migration action |
+|---|---|---|
+| `v0.0.6` → `v0.0.7` | HTML compressor strips formatting-only lines (Wikipedia/Britannica-style navigation waste). | None. |
+| `v0.0.7` → `v0.0.8` | `core.CompressionAdvisor` optional interface; JSON dictionary expanded ~30 → ~95 keys targeting OpenAI-style tool-call traffic; auto-abbreviation of high-frequency keys; quote-stripping on identifier values. | None. Existing calls to `Compress`/`Decompress` continue to work. Round-trips are still exact. |
+| `v0.0.8` → `v0.0.9` | CI/test fix only — no shipped-package code changed. | None. |
+
+**Things to know before upgrading:**
+
+- **Compression output can differ between versions.** Each release adds
+  abbreviations or techniques, so `Compress(x)` in a newer version may produce a
+  shorter string than an older version did. `Decompress()` in newer versions
+  still reads output written by older versions, so persisted `.uccp` files
+  remain readable. If your tests snapshot compressed output byte-for-byte,
+  refresh those snapshots after upgrading.
+- **When sending compressed content to an LLM, always use the current version's
+  system prompt** (`compressor.SystemPrompt()` or `AdaptiveSystemPrompt()`).
+  Older prompts won't mention newer abbreviations, which can confuse the model
+  on output produced by the newer compressor.
+- **Go toolchain requirement:** `go.mod` declares `go 1.21` as the floor. CI
+  verifies builds on Go 1.26 and 1.27 (currently supported majors), but
+  consumers on older toolchains are unaffected.
+
+Full release notes live in [`CHANGELOG_v0.0.7.md`](CHANGELOG_v0.0.7.md),
+[`CHANGELOG_v0.0.8.md`](CHANGELOG_v0.0.8.md), and
+[`CHANGELOG_v0.0.9.md`](CHANGELOG_v0.0.9.md).
+
 ### Basic Usage
 
 ```go
