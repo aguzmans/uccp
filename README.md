@@ -23,6 +23,17 @@ Internal messaging between AI agents for code, JSON, and markdown:
 - **Solution:** Compress agent communications (job results, planning context, retry information)
 - **Benefit:** 95-99% token reduction, enabling efficient multi-agent workflows
 
+## Real Savings table from a specific use case (measured)
+
+| Message type | Domain | Bytes in | Bytes out | **Byte reduction** |
+|---|---|---:|---:|---:|
+| Article body / post HTML (`ctx.Content`) | HTML | 5,763 | 4,661 | **~19%** |
+| JSON array | JSON | 8,581 | 7,562 | **~12%** |
+| JSON research corpus | JSON | 3,077 | 2,787 | **~9%** |
+| plain prose / free text | — (none) | 7,800 | 7,800 | **0%** |
+
+Notice: these are minimal real compressions for instance articles were mostly accademic articles, not a regular website where compression is MUCH MORE.
+
 ## Why UCCP?
 
 ### The Problem
