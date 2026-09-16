@@ -27,12 +27,13 @@ Internal messaging between AI agents for code, JSON, and markdown:
 
 | Message type | Domain | Bytes in | Bytes out | **Byte reduction** |
 |---|---|---:|---:|---:|
-| Article body / post HTML (`ctx.Content`) | HTML | 5,763 | 4,661 | **~19%** |
+| Full marketing site (Wayback snapshot of `sesamedisk.com`) | HTML | 75,749 | 9,945 | **~87%** |
+| Accademic Long Article HTML (`ctx.Content`) | HTML | 5,763 | 4,661 | **~19%** |
 | JSON array | JSON | 8,581 | 7,562 | **~12%** |
 | JSON research corpus | JSON | 3,077 | 2,787 | **~9%** |
 | plain prose / free text | — (none) | 7,800 | 7,800 | **0%** |
 
-Notice: these are minimal real compressions for instance articles were mostly accademic articles, not a regular website where compression is MUCH MORE.
+Notice: Reproduce the `sesamedisk.com` row with [`examples/webarchive`](examples/webarchive/main.go): `go run ./examples/webarchive`.
 
 ## Why UCCP?
 
