@@ -18,10 +18,10 @@ The result: **the same information in a fraction of the tokens**, with no round-
 
 ## Who is it for?
 
-- **AI agent frameworks** (LangChain, LlamaIndex, CrewAI, custom Go/Python agents) — reduce token cost of agent-to-agent messages (job results, plans, retries).
-- **LLM web scraping and RAG pipelines** — feed 10× more pages into the same context window.
-- **Prompt engineers** paying real money on the OpenAI / Anthropic / Google APIs — compress large HTML, JSON, or code blobs before every LLM call.
-- **Multi-agent orchestration** — swap 50 KB context files for 5 KB UCCP snapshots between workers.
+- **AI agent frameworks**: (LangChain, LlamaIndex, CrewAI, custom Go/Python agents), reduce token cost of agent-to-agent messages (job results, plans, retries).
+- **LLM web scraping and RAG pipelines**: feed 10× more pages into the same context window.
+- **Prompt engineers**: paying real money on the OpenAI / Anthropic / Google APIs, compress large HTML, JSON, or code blobs before every LLM call.
+- **Multi-agent orchestration**: swap 50 KB context files for 5 KB UCCP snapshots between workers.
 
 ## Try it in 30 seconds — the `uccp` CLI
 
