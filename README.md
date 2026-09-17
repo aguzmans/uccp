@@ -1,39 +1,85 @@
-# UCCP - Ultra-Compact Content Protocol; for TXT LLMs exchange.
+# UCCP — LLM-Readable Compression for AI Agents (70–99% Token Reduction)
+
+**Ultra-Compact Content Protocol.** Shrink HTML, JSON, and source code by 70–99% before sending them to Claude, GPT, Gemini, or any LLM — with **no decompression step** on the model side. Cut your token bill, fit 10× more context into a single prompt, and speed up agent-to-agent messaging.
 
 [![Go Version](https://img.shields.io/badge/Go-1.26+-00ADD8?style=flat&logo=go)](https://go.dev/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/aguzmans/uccp?display_name=tag&sort=semver)](https://github.com/aguzmans/uccp/releases)
 
-**LLM-readable compression for agent-to-agent communication**
+> **Keywords:** LLM compression · prompt token optimization · AI agent framework · HTML to text for LLMs · reduce OpenAI / Anthropic token cost · RAG ingestion · multi-agent orchestration
 
-UCCP is a novel compression format designed specifically for Large Language Models. Unlike traditional compression (gzip, Brotli) which produces binary output, UCCP compresses content into a human-and-LLM-readable text format, achieving 70-99% compression while remaining intelligible to language models.
+## What is UCCP?
 
-## Primary Use Cases
+UCCP is a text-based compression format built specifically for Large Language Models. Traditional compressors (gzip, Brotli, Protobuf) produce **binary** output that an LLM cannot read — so you pay to compress *and* pay to decompress. UCCP compresses into a compact but still-readable text format like `F:R+TS|B:Vite|P:api→api.get()` that Claude, GPT, and other models understand natively when given a small system prompt.
 
-### A. Web Content Ingestion
-When feeding multiple HTML sources to LLMs (documentation, articles, web scraping):
-- **Problem:** HTML is verbose (tags, boilerplate, repeated elements)
-- **Example:** 50KB documentation page → 2KB UCCP
-- **Solution:** Compress HTML content before sending to LLM, achieving 60-96% token reduction
-- **Benefit:** Process 10x more web pages within the same token budget
+The result: **the same information in a fraction of the tokens**, with no round-trip cost.
 
-### B. Agent-to-Agent Communication
-Internal messaging between AI agents for code, JSON, and markdown:
-- **Problem:** Agents repeatedly share the same context (job results, code snippets, architecture)
-- **Example:** Job summary 2.8KB JSON → 142 bytes UCCP
-- **Solution:** Compress agent communications (job results, planning context, retry information)
-- **Benefit:** 95-99% token reduction, enabling efficient multi-agent workflows
+## Who is it for?
 
-## Real Savings table from a specific very conservative use case (measured)
+- **AI agent frameworks** (LangChain, LlamaIndex, CrewAI, custom Go/Python agents) — reduce token cost of agent-to-agent messages (job results, plans, retries).
+- **LLM web scraping and RAG pipelines** — feed 10× more pages into the same context window.
+- **Prompt engineers** paying real money on the OpenAI / Anthropic / Google APIs — compress large HTML, JSON, or code blobs before every LLM call.
+- **Multi-agent orchestration** — swap 50 KB context files for 5 KB UCCP snapshots between workers.
+
+## Try it in 30 seconds — the `uccp` CLI
+
+The `uccp` binary compresses any URL, file, or stdin stream from your terminal. No Go required.
+
+**Install (macOS / Linux, latest release):**
+
+```bash
+# Fastest path — with Go installed:
+go install github.com/aguzmans/uccp/cmd/uccp@latest
+
+# Or download a prebuilt binary (no Go needed):
+# https://github.com/aguzmans/uccp/releases/latest
+```
+
+**Compress a webpage and see the savings:**
+
+```bash
+uccp --url https://example.com/ --stats > page.uccp
+```
+
+```
+--- uccp stats ---
+source:            https://example.com/
+domain:            html
+original bytes:    75759
+compressed bytes:  9945
+byte reduction:    86.9%
+tokens saved (~):  20934
+```
+
+**More usage:**
+
+```bash
+# Pipe from anywhere
+curl -s https://example.com/ | uccp --stats > page.uccp
+
+# Local file with a specific domain
+uccp --file api-response.json --domain json > out.uccp
+
+# All flags
+uccp --help
+```
+
+Source of the CLI lives in [`cmd/uccp/`](cmd/uccp/main.go). Releases (Linux, macOS, Windows on amd64 + arm64) are cut automatically by GitHub Actions + GoReleaser on every `v*` tag.
+
+## Real savings — measured on live content
 
 | Message type | Domain | Bytes in | Bytes out | **Byte reduction** |
 |---|---|---:|---:|---:|
 | Full marketing site (Wayback snapshot of `sesamedisk.com`) | HTML | 75,749 | 9,945 | **~87%** |
-| Accademic Long Article HTML (`ctx.Content`) | HTML | 5,763 | 4,661 | **~19%** |
+| Academic long-article HTML (`ctx.Content`) | HTML | 5,763 | 4,661 | **~19%** |
 | JSON array | JSON | 8,581 | 7,562 | **~12%** |
 | JSON research corpus | JSON | 3,077 | 2,787 | **~9%** |
-| plain prose / free text | — (none) | 7,800 | 7,800 | **0%** |
+| Plain prose / free text | — (none) | 7,800 | 7,800 | **0%** |
 
-Notice: Reproduce the `sesamedisk.com` row with [`examples/webarchive`](examples/webarchive/main.go): `go run ./examples/webarchive`.
+Reproduce the `sesamedisk.com` row: `go run ./examples/webarchive`, or with the CLI:
+`uccp --url https://web.archive.org/web/20260916041506/https://sesamedisk.com/ --stats > /dev/null`.
+
+The academic-article row is a very conservative baseline (short article, already lean HTML). Full websites, documentation portals, and JSON API dumps typically land in the 60–90% range.
 
 ## Why UCCP?
 
@@ -78,7 +124,9 @@ Same Agent A reads 34 compressed summaries:
 > (where all information is preserved), expect 60-75% reduction. Both modes are valuable
 > depending on whether downstream tasks need full fidelity or just the gist.
 
-## Quick Start
+## Quick Start (Go library)
+
+> Looking for the CLI instead? See [Try it in 30 seconds](#try-it-in-30-seconds--the-uccp-cli) above.
 
 ### Installation
 

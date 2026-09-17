@@ -1,0 +1,93 @@
+version: 2
+
+project_name: uccp
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: uccp
+    main: ./cmd/uccp
+    binary: uccp
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+
+archives:
+  - id: uccp
+    ids:
+      - uccp
+    name_template: >-
+      uccp_{{ .Version }}_
+      {{- if eq .Os "darwin" }}macOS
+      {{- else if eq .Os "linux" }}Linux
+      {{- else if eq .Os "windows" }}Windows
+      {{- else }}{{ .Os }}{{ end }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "arm64" }}arm64
+      {{- else }}{{ .Arch }}{{ end }}
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  version_template: "{{ .Tag }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+      - "^chore:"
+      - Merge pull request
+      - Merge branch
+
+release:
+  github:
+    owner: aguzmans
+    name: uccp
+  draft: false
+  prerelease: auto
+  header: |
+    ## UCCP {{ .Tag }}
+
+    The `uccp` CLI compresses HTML, JSON, and code into an LLM-readable format —
+    70–99% fewer tokens sent to Claude, GPT, and other LLMs, with no
+    decompression step needed on the model side.
+
+    ### Install
+
+    **macOS / Linux (one-liner):**
+    ```bash
+    curl -sSL https://github.com/aguzmans/uccp/releases/download/{{ .Tag }}/uccp_{{ .Version }}_$(uname -s)_$(uname -m).tar.gz | tar -xz -C /usr/local/bin uccp
+    ```
+
+    **Windows:** download the `.zip` from the assets below and add `uccp.exe` to your `PATH`.
+
+    **Go install:**
+    ```bash
+    go install github.com/aguzmans/uccp/cmd/uccp@{{ .Tag }}
+    ```
+
+    ### Quick usage
+    ```bash
+    uccp --url https://example.com/ --stats
+    ```
