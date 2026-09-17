@@ -12,7 +12,7 @@ Ratios vary a lot with content shape. Short prose and small JSON payloads may co
 
 ## What is UCCP?
 
-UCCP is a text-based compression format built specifically for Large Language Models. Traditional compressors (gzip, Brotli, Protobuf) produce **binary** output that an LLM cannot read — so you pay to compress *and* pay to decompress. UCCP compresses into a compact but still-readable text format like `F:R+TS|B:Vite|P:api→api.get()` that Claude, GPT, and other models understand natively when given a small system prompt.
+UCCP is a text-based compression format built specifically for Large Language Models. Traditional compressors (gzip, Brotli, Protobuf) produce **binary** output that an LLM cannot read. So you pay to compress *and* pay to decompress. UCCP compresses into a compact but still-readable text format like `F:R+TS|B:Vite|P:api→api.get()` that Claude, GPT, and other models understand natively when given a small system prompt.
 
 The result: **the same information in a fraction of the tokens**, with no round-trip cost.
 
