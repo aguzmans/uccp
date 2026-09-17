@@ -1,6 +1,8 @@
-# UCCP — LLM-Readable Compression for AI Agents (70–99% Token Reduction)
+# UCCP — LLM-Readable Compression for AI Agents
 
-**Ultra-Compact Content Protocol.** Shrink HTML, JSON, and source code by 70–99% before sending them to Claude, GPT, Gemini, or any LLM — with **no decompression step** on the model side. Cut your token bill, fit 10× more context into a single prompt, and speed up agent-to-agent messaging.
+**Ultra-Compact Content Protocol.** Shrink HTML, JSON, and source code — often by 60–90% on boilerplate-heavy inputs like full webpages — before sending them to Claude, GPT, Gemini, or any LLM, with **no decompression step** on the model side. Cut your token bill, fit more context into a single prompt, and speed up agent-to-agent messaging.
+
+Ratios vary a lot with content shape. Short prose and small JSON payloads may compress little or not at all; verbose HTML and repeated-structure agent messages compress the most. See the [measured savings table](#real-savings--measured-on-live-content) for real numbers on real content.
 
 [![Go Version](https://img.shields.io/badge/Go-1.26+-00ADD8?style=flat&logo=go)](https://go.dev/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -93,13 +95,18 @@ When building AI agent systems, token consumption becomes a major cost:
 ### The Solution
 
 UCCP provides:
-- ✅ **70-99% compression ratio** on code, jobs, architecture content
-- ✅ **LLM-readable format** - no decompression needed (Claude/GPT read it natively)
-- ✅ **Smart compression decision** - automatically determines when compression saves tokens
-- ✅ **Domain-aware** - different optimizations for HTML vs code vs JSON
-- ✅ **Zero decompression cost** - LLMs process compressed format directly
+- ✅ **Meaningful compression on the right inputs** — see the [measured savings table](#real-savings--measured-on-live-content). Full HTML pages routinely land around 60–90%; lean prose and small JSON payloads see far less. Ratios vary a lot with content shape.
+- ✅ **LLM-readable format** — no decompression needed (Claude/GPT read it natively).
+- ✅ **Smart compression decision** — `core.ShouldCompress` skips compression when it wouldn't help (small inputs, low ratio, or system-prompt overhead greater than the savings).
+- ✅ **Domain-aware** — different optimizations for HTML vs code vs JSON vs financial.
+- ✅ **Zero decompression cost** — LLMs process the compressed format directly.
 
-### Real-World Impact
+### Illustrative scenario (not a benchmark)
+
+The following is a *best-case* scenario for agent-to-agent traffic where the same
+verbose JSON gets sent repeatedly. Actual numbers on your workload will be lower
+— see the [measured savings table](#real-savings--measured-on-live-content) for
+real content.
 
 **Before UCCP:**
 ```
@@ -109,7 +116,7 @@ Agent A reads 34 completed jobs:
 - $1.20 per read
 ```
 
-**After UCCP:**
+**After UCCP (aggressive, lossy summarization):**
 ```
 Same Agent A reads 34 compressed summaries:
 - 34 × 150 bytes UCCP = 5.1KB
@@ -117,12 +124,12 @@ Same Agent A reads 34 compressed summaries:
 - $0.004 per read
 ```
 
-**Result: 99.7% token reduction, 300x cost reduction**
-
-> **Note:** High compression ratios (>90%) involve lossy summarization — structural details
-> are condensed into abbreviated summaries. For lossless abbreviation-only compression
-> (where all information is preserved), expect 60-75% reduction. Both modes are valuable
-> depending on whether downstream tasks need full fidelity or just the gist.
+> **Caveat:** Compression above ~90% almost always involves *lossy* summarization —
+> the compressor condenses structural detail into an abbreviated summary rather
+> than preserving every field. For lossless abbreviation-only compression, expect
+> more like **20–70% reduction**, heavily dependent on content shape (verbose
+> HTML compresses well; short prose barely compresses at all). Pick the mode
+> that matches whether downstream tasks need full fidelity or just the gist.
 
 ## Quick Start (Go library)
 
@@ -157,13 +164,17 @@ Check what you're on:
 go list -m github.com/aguzmans/uccp
 ```
 
-**What changes when you upgrade (v0.0.6 → v0.0.9):**
+**What changes when you upgrade** (each row links to the GitHub release):
 
-| From | Notable additions | Migration action |
+| Release | Notable additions | Migration action |
 |---|---|---|
-| `v0.0.6` → `v0.0.7` | HTML compressor strips formatting-only lines (Wikipedia/Britannica-style navigation waste). | None. |
-| `v0.0.7` → `v0.0.8` | `core.CompressionAdvisor` optional interface; JSON dictionary expanded ~30 → ~95 keys targeting OpenAI-style tool-call traffic; auto-abbreviation of high-frequency keys; quote-stripping on identifier values. | None. Existing calls to `Compress`/`Decompress` continue to work. Round-trips are still exact. |
-| `v0.0.8` → `v0.0.9` | CI/test fix only — no shipped-package code changed. | None. |
+| [`v0.0.7`](https://github.com/aguzmans/uccp/releases/tag/v0.0.7) | HTML compressor strips formatting-only lines (Wikipedia/Britannica-style navigation waste). | None. |
+| [`v0.0.8`](https://github.com/aguzmans/uccp/releases/tag/v0.0.8) | `core.CompressionAdvisor` optional interface; JSON dictionary expanded ~30 → ~95 keys targeting OpenAI-style tool-call traffic; auto-abbreviation of high-frequency keys; quote-stripping on identifier values. | None. Existing calls to `Compress`/`Decompress` continue to work. Round-trips are still exact. |
+| [`v0.0.9`](https://github.com/aguzmans/uccp/releases/tag/v0.0.9) | CI/test fix only — no shipped-package code changed. | None. |
+| [`v0.0.10`](https://github.com/aguzmans/uccp/releases/tag/v0.0.10) | First tagged release of the `uccp` CLI (`cmd/uccp`) and GoReleaser-built binaries for Linux/macOS/Windows on amd64+arm64. | None for library users; new install path available for the CLI. |
+| [`v0.0.11`](https://github.com/aguzmans/uccp/releases/tag/v0.0.11) | See release notes. | See release notes. |
+
+Full list of releases and downloadable binaries: [github.com/aguzmans/uccp/releases](https://github.com/aguzmans/uccp/releases).
 
 **Things to know before upgrading:**
 
@@ -331,7 +342,7 @@ UCCP supports multiple content domains:
 ### Code Domain (Ready)
 - Code snippets, architecture, job descriptions
 - Optimized for: React, TypeScript, Node.js, Go
-- Compression: 70-80% typical, 99% for batches
+- **Compression:** highly content-dependent. Verbose repeated-structure content like JSON job summaries can compress 70%+ under lossy summarization; short code snippets often compress much less. Measure your own workload.
 
 ```go
 compressor := domains.NewCodeCompressor()
@@ -341,7 +352,7 @@ compressor := domains.NewCodeCompressor()
 - HTML content, web scraping results, documentation pages
 - Extracts: headings, paragraphs, code blocks, lists, tables, links
 - Noise removal: strips script, style, nav, header, footer
-- Compression: 60-80% typical on article-style content
+- **Compression:** typically 50–90% on full webpages (measured: ~87% on `sesamedisk.com`, ~19% on already-lean academic article HTML). Boilerplate-heavy sites compress the most.
 
 ```go
 compressor := domains.NewHTMLCompressor()
@@ -426,7 +437,7 @@ compressed, _ = compressor.CompressFileIndex(files)
 
 | Solution | LLM-Readable? | Token Efficient? | Compression | Use Case |
 |----------|---------------|------------------|-------------|----------|
-| **UCCP** | ✅ Yes | ✅ Yes | **70-99%** | **Agent communication** |
+| **UCCP** | ✅ Yes | ✅ Yes | **~10–90%** (content-dependent) | **Agent communication, HTML → LLM** |
 | gzip | ❌ Binary | ❌ No | 70% | File transfer |
 | Protobuf | ❌ Binary | ❌ No | 60% | API communication |
 | JSON minify | ✅ Yes | ⚠️ Minimal | 10% | API responses |
