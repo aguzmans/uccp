@@ -1,6 +1,6 @@
 # UCCP — LLM-Readable Compression for AI Agents
 
-**Ultra-Compact Content Protocol.** Shrink HTML, JSON, and source code — often by 60–90% on boilerplate-heavy inputs like full webpages — before sending them to Claude, GPT, Gemini, or any LLM, with **no decompression step** on the model side. Cut your token bill, fit more context into a single prompt, and speed up agent-to-agent messaging.
+**Ultra-Compact Content Protocol.** Shrink HTML, JSON, and source code, often by 60–90% on boilerplate-heavy inputs like full webpages, before sending them to Claude, GPT, Gemini, or any LLM, with **no decompression step** on the model side. Cut your token bill, fit more context into a single prompt, and speed up agent-to-agent messaging.
 
 Ratios vary a lot with content shape. Short prose and small JSON payloads may compress little or not at all; verbose HTML and repeated-structure agent messages compress the most. See the [measured savings table](#real-savings--measured-on-live-content) for real numbers on real content.
 
